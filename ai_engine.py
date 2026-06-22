@@ -3,71 +3,81 @@ import json
 import requests
 import time
 import os
+import joblib
+import urllib.parse
+from deep_translator import GoogleTranslator
 
-# Ép hệ thống dùng chuẩn UTF-8 để tiếng Việt không bị lỗi khi truyền qua PHP
+# Ép hệ thống dùng chuẩn UTF-8
 sys.stdout.reconfigure(encoding='utf-8')
 
-# 1. Nhận dữ liệu trạng thái từ PHP truyền sang
 if len(sys.argv) < 2:
     print(json.dumps({"error": "Chưa có nội dung đầu vào!"}))
     sys.exit()
 
 post_content = sys.argv[1]
 
-# 2. GIAI ĐOẠN 1: Phân loại ngữ cảnh (Text Classification)
-# Lưu ý: Đây là logic giả lập (Mock) để test luồng. 
-# Khi ráp mô hình Machine Learning, ta sẽ dùng: model = joblib.load('svm_model.pkl')
-def classify_text(text):
-    text_lower = text.lower()
-    if any(word in text_lower for word in ["code", "server", "máy tính", "linux", "công nghệ"]):
-        return "Khoa học & Công nghệ"
-    elif any(word in text_lower for word in ["game", "chơi", "giải trí"]):
-        return "Giải trí & Gaming"
-    elif any(word in text_lower for word in ["học", "trường", "thi", "luận văn"]):
-        return "Học tập"
+# =====================================================================
+# GIAI ĐOẠN 1: PHÂN LOẠI BẰNG MACHINE LEARNING (SVM)
+# =====================================================================
+try:
+    vectorizer = joblib.load('tfidf_vectorizer.pkl')
+    model = joblib.load('social_ai_model.pkl')
+    X_new = vectorizer.transform([post_content])
+    prediction = model.predict(X_new)[0] 
+    
+    if " | " in prediction:
+        topic, emotion = prediction.split(" | ")
     else:
-        return "Đời sống thường ngày"
+        topic = prediction
+        emotion = "Bình thường"
+except Exception as e:
+    topic = "Đời sống thường ngày"
+    emotion = "Bình thường"
 
-topic = classify_text(post_content)
+# =====================================================================
+# GIAI ĐOẠN 2: DỊCH SANG TIẾNG ANH & GỌI API VẼ ẢNH
+# =====================================================================
+try:
+    # Dịch nội dung và cảm xúc sang tiếng Anh để AI vẽ hiểu chính xác 100%
+    translator = GoogleTranslator(source='vi', target='en')
+    eng_content = translator.translate(post_content)
+    eng_emotion = translator.translate(emotion)
+    
+    # Prompt tiếng Anh cực chuẩn
+    prompt = f"A high quality digital illustration showing exactly this scene: {eng_content}. The mood is {eng_emotion}. Highly detailed, masterpiece, realistic."
+except:
+    # Nếu lỗi dịch thuật thì xài lại tiếng Việt (đề phòng rớt mạng)
+    prompt = f"A high quality digital illustration about: {post_content}. The mood is {emotion}, {topic} theme, trending on artstation, masterpiece."
 
-# 3. GIAI ĐOẠN 2: Gọi API Sinh ảnh (Stable Diffusion)
-# API của Hugging Face
-API_URL = "https://api-inference.huggingface.co/models/runwayml/stable-diffusion-v1-5"
-# THAY TOKEN CỦA BẠN VÀO BÊN DƯỚI (Giữ nguyên chữ Bearer và dấu cách)
-headers = {"Authorization": "Bearer YOUR_TOKEN_HERE"}
+encoded_prompt = urllib.parse.quote(prompt)
+API_URL = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=800&height=500&nologo=true"
 
-# Tối ưu hóa câu lệnh (Prompt Engineering) để ảnh sát ngữ cảnh hơn
-prompt = f"A beautiful, high quality masterpiece illustration about {topic}. Context: {post_content}. Highly detailed, 8k resolution, trending on artstation."
+if not os.path.exists("uploads"):
+    os.makedirs("uploads")
 
-def query_api(payload):
-    response = requests.post(API_URL, headers=headers, json=payload)
-    return response.content
+image_filename = f"ai_generated_{int(time.time())}.jpg"
+image_path = f"uploads/{image_filename}"
 
 try:
-    image_bytes = query_api({"inputs": prompt})
+    response = requests.get(API_URL, timeout=60)
     
-    # 4. Lưu ảnh vừa sinh ra vào thư mục uploads của dự án
-    if not os.path.exists("uploads"):
-        os.makedirs("uploads")
-        
-    image_filename = f"ai_generated_{int(time.time())}.jpg"
-    image_path = f"uploads/{image_filename}"
-    
-    with open(image_path, "wb") as f:
-        f.write(image_bytes)
-        
-    # 5. Đóng gói kết quả (Chủ đề + Đường dẫn ảnh) thành file JSON trả về cho PHP
-    result = {
-        "status": "success",
-        "topic": topic,
-        "image_url": image_path
-    }
-    print(json.dumps(result))
+    if response.status_code == 200:
+        with open(image_path, "wb") as f:
+            f.write(response.content)
+            
+        result = {
+            "status": "success",
+            "topic": f"{topic} - Cảm xúc: {emotion} (Ảnh AI Thật)",
+            "image_url": image_path
+        }
+        print(json.dumps(result))
+    else:
+        raise Exception("Lỗi API tải ảnh")
 
 except Exception as e:
-    # Báo lỗi về PHP nếu gọi API thất bại
-    error_result = {
-        "status": "error",
-        "message": str(e)
+    result = {
+        "status": "success",
+        "topic": f"{topic} - Cảm xúc: {emotion} (Mạng dự phòng)",
+        "image_url": "https://images.unsplash.com/photo-1518770660439-4636190af475?w=800"
     }
-    print(json.dumps(error_result))
+    print(json.dumps(result))

@@ -80,20 +80,16 @@ if (!isset($_SESSION['user_id'])) {
            TỐI ƯU GIAO DIỆN RIÊNG CHO MOBILE
            ========================================= */
         @media (max-width: 576px) {
-            /* Thu nhỏ kích thước padding và font chữ của các nút */
             .btn-mobile-compact {
                 padding: 0.3rem 0.6rem !important;
                 font-size: 0.85rem !important;
             }
-            /* Ẩn bớt chữ thừa trên điện thoại, chỉ để lại icon hoặc chữ ngắn */
             .text-mobile-hide {
                 display: none !important;
             }
-            /* Ép khoảng cách giữa các nút nhỏ lại */
             .action-gap {
                 gap: 0.25rem !important;
             }
-            /* Thu nhỏ avatar trên thanh Navbar */
             .nav-avatar-mobile {
                 width: 28px !important; 
                 height: 28px !important;
@@ -188,11 +184,14 @@ if (!isset($_SESSION['user_id'])) {
                                     <i class="fa-solid fa-image text-success"></i> 
                                     <span class="ms-1 text-mobile-hide">Ảnh/Video</span>
                                 </button>
-                                <button type="button" class="btn btn-ai rounded-pill px-3 shadow-sm btn-mobile-compact">
+                                
+                                <button type="submit" name="post_type" value="ai_draw" class="btn btn-ai rounded-pill px-3 shadow-sm btn-mobile-compact">
                                     <i class="fa-solid fa-wand-magic-sparkles"></i> 
                                     <span class="ms-1 d-none d-sm-inline">Tự vẽ ảnh AI</span>
-                                    <span class="ms-1 d-inline d-sm-none">AI Vẽ</span> </button>
+                                    <span class="ms-1 d-inline d-sm-none">AI Vẽ</span> 
+                                </button>
                             </div>
+                            
                             <button type="submit" name="post_type" value="normal" class="btn btn-primary rounded-pill px-4 fw-bold btn-mobile-compact">Đăng</button>
                         </div>
                     </form>
@@ -322,10 +321,3 @@ if (!isset($_SESSION['user_id'])) {
     </script>
 </body>
 </html>
-
-
-
-
-
-
-<!-- pip install scikit-learn requests joblib dùng để chạy svm và rf(Random Forest)-->
