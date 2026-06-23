@@ -7,33 +7,33 @@ from sklearn.metrics import accuracy_score
 import joblib
 import os
 
-print("=== HỆ THỐNG HUẤN LUYỆN AI (SOCIAL NETWORK) ===")
-print("[1] Đang tải bộ dữ liệu dataset.csv...")
+print("=== HỆ THỐNG HUẤN LUYỆN AI BẢN 20K DÒNG ===")
+print("[1] Đang tải bộ dữ liệu dataset_20k.csv...")
 
 # 1. Đọc dữ liệu
 try:
-    df = pd.read_csv('dataset_auto.csv')
+    df = pd.read_csv('dataset_20k.csv')
 except FileNotFoundError:
-    print("Lỗi: Không tìm thấy file dataset.csv!")
+    print("Lỗi: Không tìm thấy file dataset_20k.csv. Bạn đã chạy generate_data.py chưa?")
     exit()
 
 # Gộp Chủ đề và Cảm xúc lại thành một Nhãn kép để ảnh sinh ra sát ngữ cảnh nhất
-# Ví dụ: "Học tập - Buồn rầu"
+# Ví dụ: "Học tập | Buồn rầu"
 df['Label'] = df['Topic'] + " | " + df['Emotion']
 
 X = df['Text']
 y = df['Label']
 
 # 2. Vector hóa văn bản bằng TF-IDF
-print("[2] Đang trích xuất đặc trưng ngôn ngữ bằng TF-IDF...")
-vectorizer = TfidfVectorizer(max_features=1000)
+print("[2] Đang trích xuất đặc trưng ngôn ngữ bằng TF-IDF (Đã mở rộng lên 3000 từ vựng)...")
+vectorizer = TfidfVectorizer(max_features=3000)
 X_vectors = vectorizer.fit_transform(X)
 
 # Chia tập dữ liệu: 80% để học, 20% để thi thử
 X_train, X_test, y_train, y_test = train_test_split(X_vectors, y, test_size=0.2, random_state=42)
 
 # 3. Huấn luyện và Đánh giá Mô hình
-print("[3] Bắt đầu huấn luyện và so sánh thuật toán...")
+print("[3] Bắt đầu huấn luyện và so sánh thuật toán (có thể mất 10-30 giây)...")
 
 # Thuật toán SVM (Support Vector Machine)
 svm_model = SVC(kernel='linear')
