@@ -1,16 +1,18 @@
 <?php
 session_start();
 require_once 'db.php';
+require_once 'includes/helpers.php';
 
 if (!isset($_SESSION['user_id'])) {
     header("Location: login.php");
     exit();
 }
 $current_user_id = $_SESSION['user_id'];
+$active_menu = 'home';
 
-// Đếm số thông báo chưa đọc
 $notif_count_query = $conn->query("SELECT COUNT(*) as total FROM notifications WHERE user_id = $current_user_id AND is_read = 0");
 $unread_notif_count = $notif_count_query->fetch_assoc()['total'];
+$is_user_admin = is_admin($conn, $current_user_id);
 ?>
 <!DOCTYPE html>
 <html lang="vi" data-bs-theme="light">
@@ -23,151 +25,26 @@ $unread_notif_count = $notif_count_query->fetch_assoc()['total'];
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     
+    <?php include 'includes/styles.php'; ?>
     <style>
-        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f4f6f8; }
-        [data-bs-theme="dark"] body { background-color: #0f172a; }
-        .navbar-custom { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border-bottom: 1px solid rgba(0,0,0,0.05); }
-        [data-bs-theme="dark"] .navbar-custom { background: rgba(30, 41, 59, 0.95); border-bottom: 1px solid rgba(255,255,255,0.05); }
-        .card { border: none; border-radius: 16px; box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04); margin-bottom: 20px; }
-        [data-bs-theme="dark"] .card { background-color: #1e293b; color: #f8fafc; }
-        [data-bs-theme="dark"] .form-control, [data-bs-theme="dark"] .form-select { background-color: #334155; color: #f8fafc; border: none; }
-        [data-bs-theme="dark"] .form-control::placeholder { color: #94a3b8; }
-        [data-bs-theme="dark"] .btn-light { background-color: #334155; color: #f8fafc; border: none;}
-        [data-bs-theme="dark"] .btn-light:hover { background-color: #475569; }
-        [data-bs-theme="dark"] .text-dark { color: #f8fafc !important; }
-        [data-bs-theme="dark"] .text-muted { color: #94a3b8 !important; }
-        [data-bs-theme="dark"] .dropdown-menu { background-color: #334155; border-color: #475569; }
-        [data-bs-theme="dark"] .dropdown-item { color: #f8fafc; }
-        [data-bs-theme="dark"] .dropdown-item:hover { background-color: #475569; }
-        .btn-ai { background: linear-gradient(135deg, #8b5cf6, #d946ef); color: white; border: none; font-weight: 600; }
-        .btn-ai:hover { opacity: 0.9; color: white; }
         .status-input { background-color: #f1f5f9; border-radius: 20px; resize: none; }
         [data-bs-theme="dark"] .status-input { background-color: #0f172a; }
-        .left-menu, .right-menu { position: sticky; top: 80px; }
-        
         .comment-box { background-color: #f8fafc; border-radius: 12px; padding: 10px 15px; }
         [data-bs-theme="dark"] .comment-box { background-color: #0f172a; }
         .btn-like.liked { color: #0ea5e9 !important; font-weight: bold; }
-        
-        .notif-item { transition: 0.2s; border-radius: 8px; margin: 0 8px; padding: 10px; }
-        .notif-item:hover { background-color: #f1f5f9; }
-        [data-bs-theme="dark"] .notif-item:hover { background-color: #475569; }
-        .notif-icon { width: 40px; height: 40px; object-fit: cover; border-radius: 50%; }
-        .unread-bg { background-color: rgba(14, 165, 233, 0.05); }
     </style>
 </head>
 <body>
 
-    <nav class="navbar navbar-expand-lg navbar-custom sticky-top py-2">
-        <div class="container">
-            <a class="navbar-brand fw-bold text-gradient fs-4" href="index.php">
-                <i class="fa-solid fa-earth-asia me-1"></i> SocialAI
-            </a>
-            
-            <div class="d-none d-md-block w-25">
-                <form action="search.php" method="GET" class="w-100 m-0">
-                    <div class="input-group">
-                        <span class="input-group-text bg-light border-0 rounded-start-pill text-muted"><i class="fa-solid fa-magnifying-glass"></i></span>
-                        <input type="text" name="q" class="form-control bg-light border-0 rounded-end-pill" placeholder="Tìm kiếm bạn bè, bài viết..." value="<?php echo isset($_GET['q']) ? htmlspecialchars($_GET['q']) : ''; ?>" required>
-                    </div>
-                </form>
-            </div>
-
-            <div class="d-flex align-items-center gap-2">
-                <button id="btn-darkmode" class="btn btn-light rounded-circle shadow-sm" style="width: 40px; height: 40px;">
-                    <i class="fa-solid fa-moon"></i>
-                </button>
-                
-                <div class="dropdown me-1">
-                    <button class="btn btn-light rounded-circle shadow-sm position-relative" type="button" data-bs-toggle="dropdown" id="bell-btn" style="width: 40px; height: 40px;">
-                        <i class="fa-solid fa-bell"></i>
-                        <?php if($unread_notif_count > 0): ?>
-                            <span id="notif-badge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger border border-light" style="font-size: 0.6rem;">
-                                <?php echo $unread_notif_count; ?>
-                            </span>
-                        <?php endif; ?>
-                    </button>
-                    <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 p-2" style="width: 320px; max-height: 400px; overflow-y: auto; border-radius: 16px;">
-                        <li><h6 class="dropdown-header fw-bold text-dark fs-6 mb-2">Thông báo của bạn</h6></li>
-                        <?php
-                        $sql_notif = "SELECT n.*, u.full_name, u.avatar_url FROM notifications n JOIN users u ON n.sender_id = u.id WHERE n.user_id = $current_user_id ORDER BY n.created_at DESC LIMIT 10";
-                        $res_notif = $conn->query($sql_notif);
-                        
-                        if ($res_notif && $res_notif->num_rows > 0) {
-                            while($notif = $res_notif->fetch_assoc()) {
-                                $unread_class = ($notif['is_read'] == 0) ? 'unread-bg' : '';
-                                
-                                $notif_text = "";
-                                $notif_link = "#";
-                                if ($notif['type'] == 'like') {
-                                    $notif_text = "đã <b>thích</b> bài viết của bạn.";
-                                    $notif_link = "#post-" . $notif['post_id'];
-                                } elseif ($notif['type'] == 'comment') {
-                                    $notif_text = "đã <b>bình luận</b> về bài viết của bạn.";
-                                    $notif_link = "#post-" . $notif['post_id'];
-                                } elseif ($notif['type'] == 'friend_request') {
-                                    $notif_text = "đã gửi cho bạn một <b>lời mời kết bạn</b>.";
-                                    $notif_link = "friends.php";
-                                } elseif ($notif['type'] == 'friend_accept') {
-                                    $notif_text = "đã <b>chấp nhận</b> lời mời kết bạn.";
-                                    $notif_link = "friends.php";
-                                }
-                        ?>
-                            <li>
-                                <a class="dropdown-item notif-item d-flex align-items-center <?php echo $unread_class; ?>" href="<?php echo $notif_link; ?>" style="white-space: normal;">
-                                    <img src="<?php echo !empty($notif['avatar_url']) ? $notif['avatar_url'] : 'https://ui-avatars.com/api/?name='.urlencode($notif['full_name']).'&background=random'; ?>" 
-                                         class="notif-icon me-3 shadow-sm" 
-                                         onerror="this.src='https://ui-avatars.com/api/?name=<?php echo urlencode($notif['full_name']); ?>&background=random';">
-                                    <div>
-                                        <span class="text-dark" style="font-size: 0.9rem;"><?php echo "<b>" . htmlspecialchars($notif['full_name']) . "</b> " . $notif_text; ?></span>
-                                        <div class="text-primary small" style="font-size: 0.75rem;"><i class="fa-regular fa-clock me-1"></i><?php echo date('H:i d/m', strtotime($notif['created_at'])); ?></div>
-                                    </div>
-                                </a>
-                            </li>
-                        <?php 
-                            }
-                        } else {
-                            echo '<li class="text-center text-muted py-3 small">Bạn chưa có thông báo nào.</li>';
-                        }
-                        ?>
-                    </ul>
-                </div>
-
-                <a href="profile.php" class="text-decoration-none">
-                    <div class="d-flex align-items-center bg-light rounded-pill px-2 py-1 shadow-sm profile-btn-hover" data-bs-theme="light">
-                        <img src="<?php echo !empty($_SESSION['avatar_url']) ? $_SESSION['avatar_url'] : 'https://ui-avatars.com/api/?name='.urlencode($_SESSION['full_name']).'&background=random'; ?>" 
-                             class="rounded-circle me-md-2" style="width: 32px; height: 32px; object-fit: cover;"
-                             onerror="this.src='https://ui-avatars.com/api/?name=<?php echo urlencode($_SESSION['full_name']); ?>&background=random';">
-                             
-                        <span class="fw-bold fs-6 pe-2 text-dark text-nowrap d-none d-md-inline-block text-truncate" style="max-width: 120px; vertical-align: middle;">
-                            <?php echo htmlspecialchars($_SESSION['full_name']); ?>
-                        </span>
-                    </div>
-                </a>
-                
-                <a href="logout.php" class="btn btn-light rounded-circle text-danger ms-2 shadow-sm" style="width: 40px; height: 40px;" title="Đăng xuất">
-                    <i class="fa-solid fa-right-from-bracket"></i>
-                </a>
-            </div>
-        </div>
-    </nav>
+<?php include 'includes/navbar.php'; ?>
 
     <div class="container mt-4">
         <div class="row">
-            <div class="col-md-3 d-none d-md-block left-menu">
-                <ul class="nav flex-column font-weight-bold gap-1">
-                    <li class="nav-item"><a class="nav-link text-dark rounded-3 px-3 py-2 bg-primary bg-opacity-10 text-primary fw-bold" href="index.php"><i class="fa-solid fa-house fa-fw me-2"></i> Bảng tin</a></li>
-                    <li class="nav-item"><a class="nav-link text-dark rounded-3 px-3 py-2" href="profile.php"><i class="fa-solid fa-user fa-fw me-2 text-success"></i> Trang cá nhân</a></li>
-                    <li class="nav-item"><a class="nav-link text-dark rounded-3 px-3 py-2" href="friends.php"><i class="fa-solid fa-user-group fa-fw me-2 text-info"></i> Bạn bè</a></li>
-                    <hr class="my-2">
-                    <li class="nav-item"><a class="nav-link text-dark rounded-3 px-3 py-2" href="#"><i class="fa-solid fa-users fa-fw me-2 text-warning"></i> Nhóm (Sắp ra mắt)</a></li>
-                    <li class="nav-item"><a class="nav-link text-dark rounded-3 px-3 py-2" href="#"><i class="fa-solid fa-robot fa-fw me-2 text-secondary"></i> Quản lý AI Model</a></li>
-                </ul>
-            </div>
+            <?php include 'includes/sidebar.php'; ?>
 
             <div class="col-md-6">
                 <div class="card p-3 shadow-sm">
-                    <form action="process_post.php" method="POST" id="post-form">
+                    <form action="process_post.php" method="POST" id="post-form" enctype="multipart/form-data">
                         <div class="d-flex mb-2">
                             <img src="<?php echo !empty($_SESSION['avatar_url']) ? $_SESSION['avatar_url'] : 'https://ui-avatars.com/api/?name='.urlencode($_SESSION['full_name']).'&background=random'; ?>" 
                                  class="rounded-circle me-2 mt-1 shadow-sm" style="width: 40px; height: 40px; object-fit: cover; flex-shrink: 0;"
@@ -187,13 +64,20 @@ $unread_notif_count = $notif_count_query->fetch_assoc()['total'];
                                 <img id="ai-image-preview" src="" class="img-fluid rounded-3 w-100" alt="Xem trước">
                             </div>
                             <input type="hidden" name="ai_topic" id="hidden_ai_topic" value="">
+                            <input type="hidden" name="ai_sentiment" id="hidden_ai_sentiment" value="">
                             <input type="hidden" name="ai_image_url" id="hidden_ai_image_url" value="">
                         </div>
+
+                        <div id="post-image-preview" class="d-none mb-3 position-relative">
+                            <button type="button" id="btn-remove-image" class="btn btn-sm btn-danger position-absolute top-0 end-0 m-2 rounded-circle"><i class="fa-solid fa-xmark"></i></button>
+                            <img id="post-image-preview-img" src="" class="img-fluid rounded-3 w-100" alt="Preview">
+                        </div>
+                        <input type="file" name="post_image" id="post-image-input" class="d-none" accept="image/*">
 
                         <hr class="text-muted opacity-25">
                         <div class="d-flex justify-content-between align-items-center">
                             <div class="d-flex gap-2">
-                                <button type="button" class="btn btn-light text-muted fw-bold rounded-pill px-3"><i class="fa-solid fa-image text-success"></i></button>
+                                <button type="button" id="btn-upload-image" class="btn btn-light text-muted fw-bold rounded-pill px-3" title="Thêm ảnh"><i class="fa-solid fa-image text-success"></i></button>
                                 <button type="button" id="btn-ai-draw" class="btn btn-ai rounded-pill px-3 shadow-sm"><i class="fa-solid fa-wand-magic-sparkles"></i> <span class="ms-1 d-none d-sm-inline">AI Vẽ</span></button>
                             </div>
                             
@@ -288,6 +172,10 @@ $unread_notif_count = $notif_count_query->fetch_assoc()['total'];
                             </div>
                             
                             <p class="mb-2 mt-2 text-dark" style="white-space: pre-wrap;"><?php echo htmlspecialchars($post['content']); ?></p>
+
+                            <?php if (!empty($post['image_url'])): ?>
+                                <img src="<?php echo htmlspecialchars($post['image_url']); ?>" class="img-fluid rounded-3 border mb-2" alt="Post image">
+                            <?php endif; ?>
                             
                             <?php if (!empty($post['generated_image_url'])): ?>
                                 <img src="<?php echo htmlspecialchars($post['generated_image_url']); ?>" class="img-fluid rounded-3 border mb-2" alt="AI Generated Image">
@@ -376,7 +264,7 @@ $unread_notif_count = $notif_count_query->fetch_assoc()['total'];
                         if ($res_contacts && $res_contacts->num_rows > 0) {
                             while($contact = $res_contacts->fetch_assoc()) {
                         ?>
-                        <li class="d-flex align-items-center mb-3 p-1 rounded custom-hover" style="cursor: pointer;">
+                        <li class="d-flex align-items-center mb-3 p-1 rounded custom-hover" style="cursor: pointer;" onclick="location.href='profile.php?user_id=<?php echo $contact['id']; ?>'">
                             <img src="<?php echo !empty($contact['avatar_url']) ? $contact['avatar_url'] : 'https://ui-avatars.com/api/?name='.urlencode($contact['full_name']).'&background=random'; ?>" 
                                  class="rounded-circle me-2 object-fit-cover shadow-sm" width="35" height="35" style="object-fit: cover;"
                                  onerror="this.src='https://ui-avatars.com/api/?name=<?php echo urlencode($contact['full_name']); ?>&background=random';">
@@ -396,30 +284,22 @@ $unread_notif_count = $notif_count_query->fetch_assoc()['total'];
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <?php include 'includes/footer_scripts.php'; ?>
     <script>
-        const btnDarkMode = document.getElementById('btn-darkmode');
-        const htmlElement = document.documentElement;
-        const iconDarkMode = btnDarkMode.querySelector('i');
-
-        const currentTheme = localStorage.getItem('theme') || 'light';
-        setTheme(currentTheme);
-
-        btnDarkMode.addEventListener('click', () => {
-            setTheme(htmlElement.getAttribute('data-bs-theme') === 'light' ? 'dark' : 'light');
-        });
-
-        function setTheme(theme) {
-            htmlElement.setAttribute('data-bs-theme', theme);
-            localStorage.setItem('theme', theme);
-            iconDarkMode.className = theme === 'dark' ? 'fa-solid fa-sun text-warning' : 'fa-solid fa-moon';
-        }
-
-        document.getElementById('bell-btn').addEventListener('click', function() {
-            const badge = document.getElementById('notif-badge');
-            if (badge) {
-                badge.style.display = 'none';
-                fetch('api_read_notif.php');
+        document.getElementById('btn-upload-image').addEventListener('click', () => document.getElementById('post-image-input').click());
+        document.getElementById('post-image-input').addEventListener('change', function(e) {
+            if (e.target.files && e.target.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(ev) {
+                    document.getElementById('post-image-preview-img').src = ev.target.result;
+                    document.getElementById('post-image-preview').classList.remove('d-none');
+                };
+                reader.readAsDataURL(e.target.files[0]);
             }
+        });
+        document.getElementById('btn-remove-image').addEventListener('click', function() {
+            document.getElementById('post-image-input').value = '';
+            document.getElementById('post-image-preview').classList.add('d-none');
         });
 
         document.getElementById('btn-ai-draw').addEventListener('click', async function() {
@@ -445,6 +325,7 @@ $unread_notif_count = $notif_count_query->fetch_assoc()['total'];
                     document.getElementById('ai-image-preview').src = data.image_url;
                     document.getElementById('ai-topic-badge').innerHTML = '<i class="fa-solid fa-microchip me-1"></i> ' + data.topic;
                     document.getElementById('hidden_ai_topic').value = data.topic;
+                    document.getElementById('hidden_ai_sentiment').value = data.predicted_emotion || '';
                     document.getElementById('hidden_ai_image_url').value = data.image_url;
                 } else {
                     alert('Lỗi: ' + data.message);
@@ -461,6 +342,7 @@ $unread_notif_count = $notif_count_query->fetch_assoc()['total'];
         document.getElementById('btn-remove-ai').addEventListener('click', function() {
             document.getElementById('ai-preview-box').classList.add('d-none');
             document.getElementById('hidden_ai_topic').value = '';
+            document.getElementById('hidden_ai_sentiment').value = '';
             document.getElementById('hidden_ai_image_url').value = '';
         });
 

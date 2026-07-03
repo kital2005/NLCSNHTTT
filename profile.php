@@ -1,25 +1,55 @@
 <?php
 session_start();
 require_once 'db.php';
+require_once 'includes/helpers.php';
 
 if (!isset($_SESSION['user_id'])) {
     header("Location: login.php");
     exit();
 }
 
-$current_user_id = $_SESSION['user_id'];
+$current_user_id = intval($_SESSION['user_id']);
+$profile_user_id = isset($_GET['user_id']) ? intval($_GET['user_id']) : $current_user_id;
+$is_own_profile = ($profile_user_id === $current_user_id);
 
-// Lấy thông tin user hiện tại
-$query = "SELECT * FROM users WHERE id = $current_user_id";
+$query = "SELECT * FROM users WHERE id = $profile_user_id";
 $result = $conn->query($query);
+if (!$result || $result->num_rows === 0) {
+    header("Location: profile.php");
+    exit();
+}
 $user = $result->fetch_assoc();
 
-// Đếm số bài viết và tổng số lượt thích
-$post_count_query = $conn->query("SELECT COUNT(*) as total FROM posts WHERE user_id = $current_user_id");
+$post_count_query = $conn->query("SELECT COUNT(*) as total FROM posts WHERE user_id = $profile_user_id");
 $post_count = $post_count_query->fetch_assoc()['total'];
 
-$total_likes_query = $conn->query("SELECT COUNT(*) as total FROM likes JOIN posts ON likes.post_id = posts.id WHERE posts.user_id = $current_user_id");
+$total_likes_query = $conn->query("SELECT COUNT(*) as total FROM likes JOIN posts ON likes.post_id = posts.id WHERE posts.user_id = $profile_user_id");
 $total_likes = $total_likes_query->fetch_assoc()['total'];
+
+$friend_status = 'none';
+if (!$is_own_profile) {
+    $fs = $conn->query("SELECT * FROM friends WHERE (sender_id=$current_user_id AND receiver_id=$profile_user_id) OR (sender_id=$profile_user_id AND receiver_id=$current_user_id) LIMIT 1");
+    if ($fs && $fs->num_rows > 0) {
+        $fr = $fs->fetch_assoc();
+        if ($fr['status'] === 'accepted') $friend_status = 'accepted';
+        elseif ($fr['sender_id'] == $current_user_id) $friend_status = 'pending_sent';
+        else $friend_status = 'pending_received';
+    }
+}
+
+$posts_where = "posts.user_id = $profile_user_id";
+if (!$is_own_profile) {
+    $posts_where .= " AND (posts.privacy = 'public'";
+    if ($friend_status === 'accepted') {
+        $posts_where .= " OR posts.privacy = 'friends'";
+    }
+    $posts_where .= ")";
+}
+
+$active_menu = 'profile';
+$notif_count_query = $conn->query("SELECT COUNT(*) as total FROM notifications WHERE user_id = $current_user_id AND is_read = 0");
+$unread_notif_count = $notif_count_query->fetch_assoc()['total'];
+$is_user_admin = is_admin($conn, $current_user_id);
 ?>
 <!DOCTYPE html>
 <html lang="vi" data-bs-theme="light">
@@ -135,9 +165,21 @@ $total_likes = $total_likes_query->fetch_assoc()['total'];
             </div>
             
             <div class="profile-actions">
+                <?php if ($is_own_profile): ?>
                 <button class="btn btn-outline-dark fw-bold rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#editProfileModal">
                     <i class="fa-solid fa-pen me-2"></i> Chỉnh sửa hồ sơ
                 </button>
+                <?php else: ?>
+                    <?php if ($friend_status === 'none'): ?>
+                    <button class="btn btn-primary fw-bold rounded-pill px-4 btn-friend-action" data-action="add" data-target="<?php echo $profile_user_id; ?>"><i class="fa-solid fa-user-plus me-1"></i> Kết bạn</button>
+                    <?php elseif ($friend_status === 'pending_sent'): ?>
+                    <button class="btn btn-light fw-bold rounded-pill px-4 btn-friend-action" data-action="cancel" data-target="<?php echo $profile_user_id; ?>">Hủy lời mời</button>
+                    <?php elseif ($friend_status === 'pending_received'): ?>
+                    <button class="btn btn-success fw-bold rounded-pill px-4 btn-friend-action" data-action="accept" data-target="<?php echo $profile_user_id; ?>"><i class="fa-solid fa-check me-1"></i> Chấp nhận</button>
+                    <?php else: ?>
+                    <button class="btn btn-outline-secondary fw-bold rounded-pill px-4 btn-friend-action" data-action="unfriend" data-target="<?php echo $profile_user_id; ?>"><i class="fa-solid fa-user-minus me-1"></i> Hủy kết bạn</button>
+                    <?php endif; ?>
+                <?php endif; ?>
             </div>
             
             <div class="profile-details">
@@ -156,7 +198,7 @@ $total_likes = $total_likes_query->fetch_assoc()['total'];
             </div>
         </div>
 
-        <h5 class="fw-bold mb-3 text-dark px-2">Bài viết của bạn</h5>
+        <h5 class="fw-bold mb-3 text-dark px-2"><?php echo $is_own_profile ? 'Bài viết của bạn' : 'Bài viết'; ?></h5>
 
         <?php
         $sql_posts = "SELECT posts.*, users.full_name, users.avatar_url,
@@ -165,7 +207,7 @@ $total_likes = $total_likes_query->fetch_assoc()['total'];
                         (SELECT COUNT(*) FROM comments WHERE post_id = posts.id) as comment_count
                       FROM posts 
                       JOIN users ON posts.user_id = users.id 
-                      WHERE posts.user_id = $current_user_id
+                      WHERE $posts_where
                       ORDER BY posts.created_at DESC";
         $result_posts = $conn->query($sql_posts);
 
@@ -221,6 +263,7 @@ $total_likes = $total_likes_query->fetch_assoc()['total'];
                                 </span>
                             <?php endif; ?>
                             
+                            <?php if ($is_own_profile): ?>
                             <div class="dropdown">
                                 <button class="btn btn-light btn-sm rounded-circle text-muted" type="button" data-bs-toggle="dropdown" style="width: 35px; height: 35px;">
                                     <i class="fa-solid fa-ellipsis"></i>
@@ -230,10 +273,17 @@ $total_likes = $total_likes_query->fetch_assoc()['total'];
                                     <li><a class="dropdown-item text-danger py-2" href="delete_post.php?id=<?php echo $post['id']; ?>" onclick="return confirm('Bạn có chắc chắn muốn xóa bài viết này không?');"><i class="fa-solid fa-trash me-2"></i> Xóa bài viết</a></li>
                                 </ul>
                             </div>
+                            <?php endif; ?>
                         </div>
                     </div>
                     
                     <p class="mb-2 mt-2 text-dark" style="white-space: pre-wrap;"><?php echo htmlspecialchars($post['content']); ?></p>
+                    
+                    <?php if (!empty($post['image_url'])): ?>
+                        <div class="rounded-3 overflow-hidden border mb-2">
+                            <img src="<?php echo htmlspecialchars($post['image_url']); ?>" class="img-fluid w-100" alt="Post image">
+                        </div>
+                    <?php endif; ?>
                     
                     <?php if (!empty($post['generated_image_url'])): ?>
                         <div class="rounded-3 overflow-hidden border mb-2">
@@ -325,6 +375,7 @@ $total_likes = $total_likes_query->fetch_assoc()['total'];
         ?>
     </div>
 
+    <?php if ($is_own_profile): ?>
     <div class="modal fade" id="editProfileModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
@@ -378,8 +429,22 @@ $total_likes = $total_likes_query->fetch_assoc()['total'];
         </div>
     </div>
 
+    </div>
+    <?php endif; ?>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        document.querySelectorAll('.btn-friend-action').forEach(btn => {
+            btn.addEventListener('click', async function() {
+                const res = await fetch('api_friend.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: this.dataset.action, target_id: parseInt(this.dataset.target) })
+                });
+                const data = await res.json();
+                if (data.status === 'success') location.reload();
+            });
+        });
         const currentUserAvatar = '<?php echo isset($_SESSION['avatar_url']) ? $_SESSION['avatar_url'] : ""; ?>';
         const currentUserInitial = '<?php echo mb_substr($_SESSION['full_name'], 0, 1, "UTF-8"); ?>';
         const currentUserName = '<?php echo $_SESSION['full_name']; ?>';

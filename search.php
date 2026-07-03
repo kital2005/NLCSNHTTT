@@ -114,7 +114,7 @@ $unread_notif_count = $notif_count_query->fetch_assoc()['total'];
                         while ($u = $res_users->fetch_assoc()) {
                 ?>
                             <div class="d-flex align-items-center justify-content-between p-3 search-user-card rounded-3">
-                                <div class="d-flex align-items-center">
+                                <a href="profile.php?user_id=<?php echo $u['id']; ?>" class="d-flex align-items-center text-decoration-none flex-grow-1">
                                     <img src="<?php echo !empty($u['avatar_url']) ? $u['avatar_url'] : 'https://ui-avatars.com/api/?name='.urlencode($u['full_name']).'&background=random'; ?>" 
                                          class="rounded-circle me-3 border" style="width: 50px; height: 50px; object-fit: cover;"
                                          onerror="this.src='https://ui-avatars.com/api/?name=<?php echo urlencode($u['full_name']); ?>&background=random';">
@@ -122,7 +122,7 @@ $unread_notif_count = $notif_count_query->fetch_assoc()['total'];
                                         <h6 class="mb-0 fw-bold text-dark"><?php echo htmlspecialchars($u['full_name']); ?></h6>
                                         <small class="text-muted">@<?php echo htmlspecialchars($u['username']); ?></small>
                                     </div>
-                                </div>
+                                </a>
                                 
                                 <?php
                                 // Kiểm tra trạng thái bạn bè để hiển thị nút cho hợp lý
