@@ -43,7 +43,6 @@ $total_likes = $total_likes_query->fetch_assoc()['total'];
         [data-bs-theme="dark"] .form-control { background-color: #334155; color: #f8fafc; border: none; }
         [data-bs-theme="dark"] .modal-content { background-color: #1e293b; color: #f8fafc; }
         
-        /* CSS LAYOUT PROFILE CHUẨN MẠNG XÃ HỘI MỚI */
         .profile-container { max-width: 800px; margin: 0 auto; }
         .cover-photo {
             width: 100%;
@@ -55,7 +54,6 @@ $total_likes = $total_likes_query->fetch_assoc()['total'];
         }
         .profile-header-wrapper { position: relative; margin-bottom: 20px; background: transparent; }
         
-        /* FIX LỖI MẤT ĐẦU: Dùng object-fit: contain kết hợp nền */
         .avatar-profile {
             width: 140px;
             height: 140px;
@@ -73,7 +71,6 @@ $total_likes = $total_likes_query->fetch_assoc()['total'];
         .profile-actions { padding-top: 15px; padding-right: 20px; display: flex; justify-content: flex-end; }
         .profile-details { padding: 20px 30px 10px 30px; margin-top: 10px; }
         
-        /* Giao diện Modal Premium */
         .custom-file-upload {
             border: 2px dashed #cbd5e1;
             border-radius: 12px;
@@ -86,7 +83,6 @@ $total_likes = $total_likes_query->fetch_assoc()['total'];
         .custom-file-upload:hover { border-color: #0ea5e9; background-color: rgba(14, 165, 233, 0.05); }
         .img-preview { max-width: 100%; height: 150px; object-fit: contain; border-radius: 8px; display: none; margin: 10px auto 0; }
         
-        /* CSS cho Bình luận */
         .comment-box { background-color: #f8fafc; border-radius: 12px; padding: 10px 15px; }
         [data-bs-theme="dark"] .comment-box { background-color: #0f172a; }
         .btn-like.liked { color: #0ea5e9 !important; font-weight: bold; }
@@ -99,6 +95,16 @@ $total_likes = $total_likes_query->fetch_assoc()['total'];
             <a class="navbar-brand fw-bold text-primary fs-5" href="index.php">
                 <i class="fa-solid fa-arrow-left me-2"></i> Trở về Bảng tin
             </a>
+            
+            <div class="d-none d-md-block w-25">
+                <form action="search.php" method="GET" class="w-100 m-0">
+                    <div class="input-group">
+                        <span class="input-group-text bg-light border-0 rounded-start-pill text-muted"><i class="fa-solid fa-magnifying-glass"></i></span>
+                        <input type="text" name="q" class="form-control bg-light border-0 rounded-end-pill" placeholder="Tìm kiếm bạn bè, bài viết..." value="<?php echo isset($_GET['q']) ? htmlspecialchars($_GET['q']) : ''; ?>" required>
+                    </div>
+                </form>
+            </div>
+
             <div class="d-flex align-items-center gap-3">
                 <button id="btn-darkmode" class="btn btn-light rounded-circle shadow-sm" style="width: 40px; height: 40px;">
                     <i class="fa-solid fa-moon"></i>
@@ -173,12 +179,10 @@ $total_likes = $total_likes_query->fetch_assoc()['total'];
                 $is_liked_class = ($post['user_liked'] > 0) ? 'liked' : '';
                 $like_icon = ($post['user_liked'] > 0) ? 'fa-solid' : 'fa-regular';
                 
-                // --- TÍNH NĂNG MỚI: Lấy tên 2 người gần nhất đã Like bài viết ---
                 $likers_sql = "SELECT u.full_name FROM likes l JOIN users u ON l.user_id = u.id WHERE l.post_id = {$post['id']} ORDER BY l.created_at DESC LIMIT 2";
                 $likers_res = $conn->query($likers_sql);
                 $liker_names = [];
                 while($liker = $likers_res->fetch_assoc()) {
-                    // Nếu là mình thì hiện chữ "Bạn"
                     $liker_names[] = ($liker['full_name'] == $user['full_name']) ? "Bạn" : $liker['full_name'];
                 }
                 $like_text = "";
@@ -296,7 +300,7 @@ $total_likes = $total_likes_query->fetch_assoc()['total'];
                             <?php if (!empty($_SESSION['avatar_url'])): ?>
                                 <img src="<?php echo htmlspecialchars($_SESSION['avatar_url']); ?>" class="rounded-circle me-2 mt-1 shadow-sm" style="width: 32px; height: 32px; object-fit: contain; background:#f1f5f9; flex-shrink: 0;">
                             <?php else: ?>
-                                <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center me-2 mt-1 shadow-sm" style="width: 32px; height: 32px; flex-shrink: 0;">
+                                <div class="rounded-circle bg-primary text-white d-flex justify-content-center align-items-center me-2 mt-1 shadow-sm" style="width: 32px; height: 32px; flex-shrink: 0;">
                                     <?php echo mb_substr($_SESSION['full_name'], 0, 1, "UTF-8"); ?>
                                 </div>
                             <?php endif; ?>
@@ -422,7 +426,6 @@ $total_likes = $total_likes_query->fetch_assoc()['total'];
             }
         });
 
-        // XỬ LÝ LIKE BẰNG AJAX (Cập nhật giao diện Like xịn)
         document.querySelectorAll('.btn-like').forEach(button => {
             button.addEventListener('click', async function() {
                 const postId = this.getAttribute('data-post-id');
@@ -440,7 +443,6 @@ $total_likes = $total_likes_query->fetch_assoc()['total'];
                     if(data.status === 'success') {
                         countSpan.innerText = data.likes;
                         
-                        // Đổi chữ hiển thị
                         if(data.likes == 0) {
                             textSpan.innerText = "0 lượt thích";
                         } else if(data.action === 'liked') {
@@ -463,7 +465,6 @@ $total_likes = $total_likes_query->fetch_assoc()['total'];
             });
         });
 
-        // XỬ LÝ COMMENT BẰNG AJAX TỪ INDEX.PHP
         document.querySelectorAll('.form-comment').forEach(form => {
             form.addEventListener('submit', async function(e) {
                 e.preventDefault(); 

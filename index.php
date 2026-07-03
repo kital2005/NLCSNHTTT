@@ -49,7 +49,6 @@ $unread_notif_count = $notif_count_query->fetch_assoc()['total'];
         [data-bs-theme="dark"] .comment-box { background-color: #0f172a; }
         .btn-like.liked { color: #0ea5e9 !important; font-weight: bold; }
         
-        /* CSS cho Dropdown thông báo */
         .notif-item { transition: 0.2s; border-radius: 8px; margin: 0 8px; padding: 10px; }
         .notif-item:hover { background-color: #f1f5f9; }
         [data-bs-theme="dark"] .notif-item:hover { background-color: #475569; }
@@ -61,15 +60,17 @@ $unread_notif_count = $notif_count_query->fetch_assoc()['total'];
 
     <nav class="navbar navbar-expand-lg navbar-custom sticky-top py-2">
         <div class="container">
-            <a class="navbar-brand fw-bold text-primary fs-4" href="index.php">
+            <a class="navbar-brand fw-bold text-gradient fs-4" href="index.php">
                 <i class="fa-solid fa-earth-asia me-1"></i> SocialAI
             </a>
             
             <div class="d-none d-md-block w-25">
-                <div class="input-group">
-                    <span class="input-group-text bg-light border-0 rounded-start-pill text-muted"><i class="fa-solid fa-magnifying-glass"></i></span>
-                    <input type="text" class="form-control bg-light border-0 rounded-end-pill" placeholder="Tìm kiếm...">
-                </div>
+                <form action="search.php" method="GET" class="w-100 m-0">
+                    <div class="input-group">
+                        <span class="input-group-text bg-light border-0 rounded-start-pill text-muted"><i class="fa-solid fa-magnifying-glass"></i></span>
+                        <input type="text" name="q" class="form-control bg-light border-0 rounded-end-pill" placeholder="Tìm kiếm bạn bè, bài viết..." value="<?php echo isset($_GET['q']) ? htmlspecialchars($_GET['q']) : ''; ?>" required>
+                    </div>
+                </form>
             </div>
 
             <div class="d-flex align-items-center gap-2">
@@ -77,7 +78,6 @@ $unread_notif_count = $notif_count_query->fetch_assoc()['total'];
                     <i class="fa-solid fa-moon"></i>
                 </button>
                 
-                <!-- THÊM QUẢ CHUÔNG THÔNG BÁO -->
                 <div class="dropdown me-1">
                     <button class="btn btn-light rounded-circle shadow-sm position-relative" type="button" data-bs-toggle="dropdown" id="bell-btn" style="width: 40px; height: 40px;">
                         <i class="fa-solid fa-bell"></i>
@@ -90,16 +90,13 @@ $unread_notif_count = $notif_count_query->fetch_assoc()['total'];
                     <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 p-2" style="width: 320px; max-height: 400px; overflow-y: auto; border-radius: 16px;">
                         <li><h6 class="dropdown-header fw-bold text-dark fs-6 mb-2">Thông báo của bạn</h6></li>
                         <?php
-                        // Lấy 10 thông báo mới nhất
                         $sql_notif = "SELECT n.*, u.full_name, u.avatar_url FROM notifications n JOIN users u ON n.sender_id = u.id WHERE n.user_id = $current_user_id ORDER BY n.created_at DESC LIMIT 10";
                         $res_notif = $conn->query($sql_notif);
                         
                         if ($res_notif && $res_notif->num_rows > 0) {
                             while($notif = $res_notif->fetch_assoc()) {
-                                $n_letter = mb_substr($notif['full_name'], 0, 1, "UTF-8");
                                 $unread_class = ($notif['is_read'] == 0) ? 'unread-bg' : '';
                                 
-                                // Tạo nội dung thông báo
                                 $notif_text = "";
                                 $notif_link = "#";
                                 if ($notif['type'] == 'like') {
@@ -118,11 +115,9 @@ $unread_notif_count = $notif_count_query->fetch_assoc()['total'];
                         ?>
                             <li>
                                 <a class="dropdown-item notif-item d-flex align-items-center <?php echo $unread_class; ?>" href="<?php echo $notif_link; ?>" style="white-space: normal;">
-                                    <!-- Áp dụng sửa lỗi ảnh vỡ -->
                                     <img src="<?php echo !empty($notif['avatar_url']) ? $notif['avatar_url'] : 'https://ui-avatars.com/api/?name='.urlencode($notif['full_name']).'&background=random'; ?>" 
                                          class="notif-icon me-3 shadow-sm" 
                                          onerror="this.src='https://ui-avatars.com/api/?name=<?php echo urlencode($notif['full_name']); ?>&background=random';">
-                                         
                                     <div>
                                         <span class="text-dark" style="font-size: 0.9rem;"><?php echo "<b>" . htmlspecialchars($notif['full_name']) . "</b> " . $notif_text; ?></span>
                                         <div class="text-primary small" style="font-size: 0.75rem;"><i class="fa-regular fa-clock me-1"></i><?php echo date('H:i d/m', strtotime($notif['created_at'])); ?></div>
@@ -138,7 +133,6 @@ $unread_notif_count = $notif_count_query->fetch_assoc()['total'];
                     </ul>
                 </div>
 
-                <!-- AVATAR GÓC TRÊN PHẢI ĐÃ GẮN SỬA LỖI ẢNH -->
                 <a href="profile.php" class="text-decoration-none">
                     <div class="d-flex align-items-center bg-light rounded-pill px-2 py-1 shadow-sm profile-btn-hover" data-bs-theme="light">
                         <img src="<?php echo !empty($_SESSION['avatar_url']) ? $_SESSION['avatar_url'] : 'https://ui-avatars.com/api/?name='.urlencode($_SESSION['full_name']).'&background=random'; ?>" 
@@ -172,11 +166,9 @@ $unread_notif_count = $notif_count_query->fetch_assoc()['total'];
             </div>
 
             <div class="col-md-6">
-                <!-- KHU VỰC ĐĂNG BÀI -->
                 <div class="card p-3 shadow-sm">
                     <form action="process_post.php" method="POST" id="post-form">
                         <div class="d-flex mb-2">
-                            <!-- AVATAR Ở Ô ĐĂNG BÀI ÁP DỤNG FIX ẢNH -->
                             <img src="<?php echo !empty($_SESSION['avatar_url']) ? $_SESSION['avatar_url'] : 'https://ui-avatars.com/api/?name='.urlencode($_SESSION['full_name']).'&background=random'; ?>" 
                                  class="rounded-circle me-2 mt-1 shadow-sm" style="width: 40px; height: 40px; object-fit: cover; flex-shrink: 0;"
                                  onerror="this.src='https://ui-avatars.com/api/?name=<?php echo urlencode($_SESSION['full_name']); ?>&background=random';">
@@ -217,7 +209,6 @@ $unread_notif_count = $notif_count_query->fetch_assoc()['total'];
                     </form>
                 </div>
 
-                <!-- HIỂN THỊ BẢNG TIN -->
                 <?php
                 $sql_posts = "SELECT posts.*, users.full_name, users.avatar_url,
                                 (SELECT COUNT(*) FROM likes WHERE post_id = posts.id) as like_count,
@@ -372,7 +363,6 @@ $unread_notif_count = $notif_count_query->fetch_assoc()['total'];
                 ?>
             </div>
 
-            <!-- CỘT PHẢI: NGƯỜI LIÊN HỆ -->
             <div class="col-md-3 d-none d-md-block right-menu">
                 <div class="card p-3 shadow-sm border-0" style="border-radius: 16px;">
                     <h6 class="fw-bold text-dark mb-3">Người liên hệ</h6>
@@ -424,13 +414,10 @@ $unread_notif_count = $notif_count_query->fetch_assoc()['total'];
             iconDarkMode.className = theme === 'dark' ? 'fa-solid fa-sun text-warning' : 'fa-solid fa-moon';
         }
 
-        // TÍNH NĂNG TẮT CHẤM ĐỎ KHI BẤM VÀO CHUÔNG THÔNG BÁO
         document.getElementById('bell-btn').addEventListener('click', function() {
             const badge = document.getElementById('notif-badge');
             if (badge) {
-                // Xóa số hiển thị
                 badge.style.display = 'none';
-                // Gửi API ngầm báo đã đọc
                 fetch('api_read_notif.php');
             }
         });

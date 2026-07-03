@@ -24,7 +24,6 @@ $current_user_id = $_SESSION['user_id'];
         .navbar-custom { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border-bottom: 1px solid rgba(0,0,0,0.05); }
         [data-bs-theme="dark"] .navbar-custom { background: rgba(30, 41, 59, 0.95); border-bottom: 1px solid rgba(255,255,255,0.05); }
         
-        /* ĐỔI MỚI THIẾT KẾ THẺ BẠN BÈ: CHUYỂN SANG DẠNG NGANG NHỎ GỌN */
         .friend-row-card { 
             border: none; 
             border-radius: 16px; 
@@ -60,6 +59,16 @@ $current_user_id = $_SESSION['user_id'];
             <a class="navbar-brand fw-bold text-primary fs-4" href="index.php">
                 <i class="fa-solid fa-earth-asia me-1"></i> SocialAI
             </a>
+            
+            <div class="d-none d-md-block w-25">
+                <form action="search.php" method="GET" class="w-100 m-0">
+                    <div class="input-group">
+                        <span class="input-group-text bg-light border-0 rounded-start-pill text-muted"><i class="fa-solid fa-magnifying-glass"></i></span>
+                        <input type="text" name="q" class="form-control bg-light border-0 rounded-end-pill" placeholder="Tìm kiếm bạn bè, bài viết..." value="<?php echo isset($_GET['q']) ? htmlspecialchars($_GET['q']) : ''; ?>" required>
+                    </div>
+                </form>
+            </div>
+
             <div class="d-flex align-items-center gap-2">
                 <button id="btn-darkmode" class="btn btn-light rounded-circle shadow-sm" style="width: 40px; height: 40px;">
                     <i class="fa-solid fa-moon"></i>
