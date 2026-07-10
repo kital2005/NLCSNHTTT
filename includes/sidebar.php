@@ -14,6 +14,11 @@ $active_menu = $active_menu ?? '';
             </a>
         </li>
         <li class="nav-item">
+             <a class="nav-link text-dark rounded-3 px-3 py-2 sidebar-link <?php echo ($active_menu == 'saved') ? 'active' : ''; ?>" href="saved.php">
+                <i class="fa-solid fa-bookmark fa-fw me-2"></i> Đã lưu
+            </a>
+        </li>
+        <li class="nav-item">
             <a class="nav-link text-dark rounded-3 px-3 py-2 sidebar-link <?php echo $active_menu === 'friends' ? 'active' : ''; ?>" href="friends.php">
                 <i class="fa-solid fa-user-group fa-fw me-2 text-info"></i> Bạn bè
             </a>

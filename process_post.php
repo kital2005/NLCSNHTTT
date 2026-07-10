@@ -43,7 +43,28 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
               VALUES ($user_id, '$content', '$privacy', '$ai_topic', '$ai_sentiment', " .
               ($image_url ? "'$image_url'" : "NULL") . ", " .
               ($generated_image_url ? "'$generated_image_url'" : "NULL") . ")";
-    $conn->query($query);
+        if ($conn->query($query)) {
+        $post_id = $conn->insert_id;
+
+        // Xử lý Hashtag: Tìm tất cả các từ bắt đầu bằng dấu #
+        preg_match_all('/#(\w+)/u', $_POST['content'], $matches);
+        $tags = array_unique($matches[1]);
+
+        foreach ($tags as $tag) {
+            $tag = $conn->real_escape_string($tag);
+            
+            // 1. Kiểm tra hashtag đã tồn tại chưa, nếu chưa thì thêm mới
+            $conn->query("INSERT IGNORE INTO hashtags (tag_name) VALUES ('$tag')");
+            
+            // 2. Lấy id của hashtag
+            $res = $conn->query("SELECT id FROM hashtags WHERE tag_name = '$tag'");
+            if ($row = $res->fetch_assoc()) {
+                $hashtag_id = $row['id'];
+                // 3. Liên kết bài viết với hashtag
+                $conn->query("INSERT IGNORE INTO post_hashtags (post_id, hashtag_id) VALUES ($post_id, $hashtag_id)");
+            }
+        }
+    }
 
     header("Location: index.php");
     exit();

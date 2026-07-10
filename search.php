@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once 'db.php';
+require_once 'includes/helpers.php'; // Gọi helper để dùng hàm format_post_content
 
 if (!isset($_SESSION['user_id'])) {
     header("Location: login.php");
@@ -8,11 +9,14 @@ if (!isset($_SESSION['user_id'])) {
 }
 $current_user_id = $_SESSION['user_id'];
 
-// Lấy từ khóa tìm kiếm (q = query)
+// Lấy tham số tìm kiếm (ưu tiên hashtag nếu có)
 $keyword = isset($_GET['q']) ? trim($_GET['q']) : '';
-$safe_keyword = $conn->real_escape_string($keyword);
+$hashtag = isset($_GET['hashtag']) ? trim($_GET['hashtag']) : '';
 
-// Đếm số thông báo chưa đọc (để hiển thị chuông)
+$safe_keyword = $conn->real_escape_string($keyword);
+$safe_hashtag = $conn->real_escape_string($hashtag);
+
+// Đếm số thông báo chưa đọc
 $notif_count_query = $conn->query("SELECT COUNT(*) as total FROM notifications WHERE user_id = $current_user_id AND is_read = 0");
 $unread_notif_count = $notif_count_query->fetch_assoc()['total'];
 ?>
@@ -21,7 +25,7 @@ $unread_notif_count = $notif_count_query->fetch_assoc()['total'];
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tìm kiếm: <?php echo htmlspecialchars($keyword); ?> | SocialAI</title>
+    <title>Tìm kiếm | SocialAI</title>
     
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -42,7 +46,6 @@ $unread_notif_count = $notif_count_query->fetch_assoc()['total'];
         [data-bs-theme="dark"] .comment-box { background-color: #0f172a; }
         .btn-like.liked { color: #0ea5e9 !important; font-weight: bold; }
         
-        /* CSS Card User Tìm kiếm */
         .search-user-card { transition: 0.2s; border: 1px solid transparent; }
         .search-user-card:hover { border-color: #0ea5e9; background-color: #f8fafc; }
         [data-bs-theme="dark"] .search-user-card:hover { background-color: #334155; }
@@ -60,6 +63,7 @@ $unread_notif_count = $notif_count_query->fetch_assoc()['total'];
                 <form action="search.php" method="GET" class="w-100 m-0">
                     <div class="input-group">
                         <span class="input-group-text bg-light border-0 rounded-start-pill text-muted"><i class="fa-solid fa-magnifying-glass"></i></span>
+                        <!-- Nếu đang tìm hashtag thì ô search hiển thị rỗng, nếu tìm keyword thì hiện keyword -->
                         <input type="text" name="q" class="form-control bg-light border-0 rounded-end-pill" placeholder="Tìm kiếm bạn bè, bài viết..." value="<?php echo htmlspecialchars($keyword); ?>" required>
                     </div>
                 </form>
@@ -84,7 +88,6 @@ $unread_notif_count = $notif_count_query->fetch_assoc()['total'];
 
     <div class="container mt-4">
         <div class="row">
-            <!-- CỘT TRÁI -->
             <div class="col-md-3 d-none d-md-block left-menu">
                 <ul class="nav flex-column font-weight-bold gap-1">
                     <li class="nav-item"><a class="nav-link text-dark rounded-3 px-3 py-2" href="index.php"><i class="fa-solid fa-house fa-fw me-2 text-primary"></i> Bảng tin</a></li>
@@ -95,14 +98,18 @@ $unread_notif_count = $notif_count_query->fetch_assoc()['total'];
                 </ul>
             </div>
 
-            <!-- CỘT GIỮA: KẾT QUẢ TÌM KIẾM -->
             <div class="col-md-7">
-                
                 <div class="mb-4">
-                    <h4 class="fw-bold text-dark">Kết quả tìm kiếm cho: <span class="text-primary">"<?php echo htmlspecialchars($keyword); ?>"</span></h4>
+                    <?php if(!empty($safe_hashtag)): ?>
+                        <h4 class="fw-bold text-dark">Hashtag: <span class="text-primary">#<?php echo htmlspecialchars($hashtag); ?></span></h4>
+                    <?php elseif(!empty($safe_keyword)): ?>
+                        <h4 class="fw-bold text-dark">Kết quả tìm kiếm cho: <span class="text-primary">"<?php echo htmlspecialchars($keyword); ?>"</span></h4>
+                    <?php else: ?>
+                        <h4 class="fw-bold text-dark">Vui lòng nhập từ khóa để tìm kiếm.</h4>
+                    <?php endif; ?>
                 </div>
 
-                <!-- 1. KẾT QUẢ NGƯỜI DÙNG -->
+                <!-- 1. KẾT QUẢ NGƯỜI DÙNG (Chỉ hiện khi tìm bằng Keyword bình thường) -->
                 <?php
                 if (!empty($safe_keyword)) {
                     $sql_users = "SELECT * FROM users WHERE (full_name LIKE '%$safe_keyword%' OR username LIKE '%$safe_keyword%') AND id != $current_user_id LIMIT 5";
@@ -125,7 +132,6 @@ $unread_notif_count = $notif_count_query->fetch_assoc()['total'];
                                 </a>
                                 
                                 <?php
-                                // Kiểm tra trạng thái bạn bè để hiển thị nút cho hợp lý
                                 $target_id = $u['id'];
                                 $check_friend = $conn->query("SELECT status, sender_id FROM friends WHERE (sender_id=$current_user_id AND receiver_id=$target_id) OR (sender_id=$target_id AND receiver_id=$current_user_id)");
                                 if ($check_friend->num_rows > 0) {
@@ -149,17 +155,33 @@ $unread_notif_count = $notif_count_query->fetch_assoc()['total'];
                 }
                 ?>
 
-                <!-- 2. KẾT QUẢ BÀI VIẾT -->
-                <h5 class="fw-bold text-dark mb-3"><i class="fa-solid fa-newspaper text-primary me-2"></i>Bài viết</h5>
+                <!-- 2. KẾT QUẢ BÀI VIẾT (ÁP DỤNG TRUY VẤN JOIN ĐỈNH CAO CHO HASHTAG) -->
+                <?php if(!empty($safe_keyword) || !empty($safe_hashtag)): ?>
+                    <h5 class="fw-bold text-dark mb-3"><i class="fa-solid fa-newspaper text-primary me-2"></i>Bài viết</h5>
                 <?php
-                if (!empty($safe_keyword)) {
+                    // Khởi tạo các biến để ghép vào câu SQL
+                    $join_tables = "";
+                    $where_condition = "";
+
+                    if (!empty($safe_hashtag)) {
+                        // NẾU TÌM THEO HASHTAG: Liên kết 2 bảng post_hashtags và hashtags
+                        $join_tables = " JOIN post_hashtags ph ON posts.id = ph.post_id 
+                                         JOIN hashtags h ON ph.hashtag_id = h.id ";
+                        $where_condition = " h.tag_name = '$safe_hashtag' ";
+                    } else {
+                        // NẾU TÌM BẰNG TỪ KHÓA BÌNH THƯỜNG
+                        $where_condition = " (posts.content LIKE '%$safe_keyword%' OR posts.ai_topic LIKE '%$safe_keyword%') ";
+                    }
+
+                    // Ráp câu lệnh SQL hoàn chỉnh
                     $sql_posts = "SELECT posts.*, users.full_name, users.avatar_url,
                                     (SELECT COUNT(*) FROM likes WHERE post_id = posts.id) as like_count,
                                     (SELECT COUNT(*) FROM likes WHERE post_id = posts.id AND user_id = $current_user_id) as user_liked,
                                     (SELECT COUNT(*) FROM comments WHERE post_id = posts.id) as comment_count
                                   FROM posts 
                                   JOIN users ON posts.user_id = users.id 
-                                  WHERE (posts.content LIKE '%$safe_keyword%' OR posts.ai_topic LIKE '%$safe_keyword%')
+                                  $join_tables
+                                  WHERE $where_condition
                                     AND (posts.privacy = 'public' 
                                      OR posts.user_id = $current_user_id
                                      OR (posts.privacy = 'friends' AND posts.user_id IN (
@@ -202,11 +224,15 @@ $unread_notif_count = $notif_count_query->fetch_assoc()['total'];
                                     <?php endif; ?>
                                 </div>
                                 
-                                <!-- Bôi đậm từ khóa trong nội dung bài viết -->
                                 <?php 
-                                    $highlighted_content = preg_replace('/('.preg_quote($keyword, '/').')/iu', '<mark class="bg-warning rounded px-1">$1</mark>', htmlspecialchars($post['content']));
+                                    // 1. Biến Hashtag thành thẻ Link trước
+                                    $formatted_content = format_post_content($post['content']);
+                                    // 2. Nếu tìm kiếm từ khóa, bôi đậm từ khóa (ẩn bên ngoài thẻ HTML để không vỡ link)
+                                    if (!empty($safe_keyword)) {
+                                        $formatted_content = preg_replace('/('.preg_quote($keyword, '/').')(?![^<]*>)/iu', '<mark class="bg-warning rounded px-1">$1</mark>', $formatted_content);
+                                    }
                                 ?>
-                                <p class="mb-2 mt-2 text-dark" style="white-space: pre-wrap;"><?php echo $highlighted_content; ?></p>
+                                <p class="mb-2 mt-2 text-dark" style="white-space: pre-wrap;"><?php echo $formatted_content; ?></p>
                                 
                                 <?php if (!empty($post['generated_image_url'])): ?>
                                     <img src="<?php echo htmlspecialchars($post['generated_image_url']); ?>" class="img-fluid rounded-3 border mb-2" alt="AI Generated Image">
@@ -233,9 +259,7 @@ $unread_notif_count = $notif_count_query->fetch_assoc()['total'];
                     } else {
                         echo '<div class="card p-5 text-center border-0 bg-transparent shadow-none"><i class="fa-solid fa-box-open fa-3x text-muted opacity-25 mb-3"></i><p class="text-muted">Không tìm thấy bài viết nào chứa từ khóa này.</p></div>';
                     }
-                } else {
-                    echo '<p class="text-muted fst-italic">Vui lòng nhập từ khóa để tìm kiếm.</p>';
-                }
+                endif;
                 ?>
             </div>
             
@@ -245,7 +269,6 @@ $unread_notif_count = $notif_count_query->fetch_assoc()['total'];
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // Darkmode
         const btnDarkMode = document.getElementById('btn-darkmode');
         const htmlElement = document.documentElement;
         const iconDarkMode = btnDarkMode.querySelector('i');
@@ -259,7 +282,6 @@ $unread_notif_count = $notif_count_query->fetch_assoc()['total'];
             iconDarkMode.className = theme === 'dark' ? 'fa-solid fa-sun text-warning' : 'fa-solid fa-moon';
         }
 
-        // Like AJAX
         document.querySelectorAll('.btn-like').forEach(button => {
             button.addEventListener('click', async function() {
                 const postId = this.getAttribute('data-post-id');
@@ -289,7 +311,6 @@ $unread_notif_count = $notif_count_query->fetch_assoc()['total'];
             });
         });
 
-        // Kết bạn AJAX trên thẻ User
         document.querySelectorAll('.btn-action').forEach(button => {
             button.addEventListener('click', async function() {
                 const action = this.getAttribute('data-action');

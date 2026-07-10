@@ -64,4 +64,12 @@ function table_exists($conn, $table) {
     $res = $conn->query("SHOW TABLES LIKE '$t'");
     return $res && $res->num_rows > 0;
 }
+
+function format_post_content($content) {
+    $content = htmlspecialchars($content);
+    // Chuyển đổi #hashtag thành link
+    $content = preg_replace('/#(\w+)/u', '<a href="search.php?hashtag=$1" class="hashtag">#$1</a>', $content);
+    // Chuyển đổi xuống dòng thành thẻ <br>
+    return nl2br($content);
+}
 ?>
