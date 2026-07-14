@@ -32,19 +32,20 @@ $is_user_admin = is_admin($conn, $current_user_id);
         .comment-box { background-color: #f8fafc; border-radius: 12px; padding: 10px 15px; }
         [data-bs-theme="dark"] .comment-box { background-color: #0f172a; }
         .btn-like.liked { color: #0ea5e9 !important; font-weight: bold; }
+        .hover-underline:hover { text-decoration: underline !important; }
     </style>
 </head>
 <body>
 
 <?php include 'includes/navbar.php'; ?>
 
-    <div class="container mt-4">
+    <div class="container mt-4 pb-5">
         <div class="row">
             <?php include 'includes/sidebar.php'; ?>
 
             <div class="col-md-6">
                 <!-- KHU VỰC ĐĂNG BÀI -->
-                <div class="card p-3 shadow-sm">
+                <div class="card p-3 shadow-sm mb-4">
                     <form action="process_post.php" method="POST" id="post-form" enctype="multipart/form-data">
                         <div class="d-flex mb-2">
                             <img src="<?php echo !empty($_SESSION['avatar_url']) ? $_SESSION['avatar_url'] : 'https://ui-avatars.com/api/?name='.urlencode($_SESSION['full_name']).'&background=random'; ?>" 
@@ -80,7 +81,7 @@ $is_user_admin = is_admin($conn, $current_user_id);
                         <hr class="text-muted opacity-25">
                         <div class="d-flex justify-content-between align-items-center">
                             <div class="d-flex gap-2">
-                                <button type="button" id="btn-upload-image" class="btn btn-light text-muted fw-bold rounded-pill px-3" title="Thêm ảnh"><i class="fa-solid fa-image text-success"></i></button>
+                                <button type="button" id="btn-upload-image" class="btn btn-light text-muted fw-bold rounded-pill px-3" title="Thêm ảnh"><i class="fa-solid fa-image text-success"></i> Thêm ảnh</button>
                                 <button type="button" id="btn-ai-draw" class="btn btn-ai rounded-pill px-3 shadow-sm"><i class="fa-solid fa-wand-magic-sparkles"></i> <span class="ms-1 d-none d-sm-inline">AI Vẽ</span></button>
                             </div>
                             
@@ -96,7 +97,7 @@ $is_user_admin = is_admin($conn, $current_user_id);
                     </form>
                 </div>
 
-                <!-- HIỂN THỊ BẢNG TIN -->
+                <!-- HIỂN THỊ BẢNG TIN (KẾT HỢP BÀI CÁ NHÂN VÀ BÀI NHÓM ĐÃ THAM GIA) -->
                 <?php
                 $sql_posts = "SELECT posts.*, users.full_name, users.avatar_url,
                                 (SELECT COUNT(*) FROM likes WHERE post_id = posts.id) as like_count,
@@ -104,18 +105,28 @@ $is_user_admin = is_admin($conn, $current_user_id);
                                 (SELECT COUNT(*) FROM comments WHERE post_id = posts.id) as comment_count,
                                 (SELECT COUNT(*) FROM saved_posts WHERE post_id = posts.id AND user_id = $current_user_id) as is_saved,
                                 sp.content as shared_content, sp.image_url as shared_image_url, sp.generated_image_url as shared_generated_image_url, sp.ai_topic as shared_ai_topic, sp.created_at as shared_created_at,
-                                su.full_name as shared_full_name, su.avatar_url as shared_avatar_url
+                                su.full_name as shared_full_name, su.avatar_url as shared_avatar_url,
+                                g.name as group_name
                               FROM posts 
                               JOIN users ON posts.user_id = users.id 
                               LEFT JOIN posts sp ON posts.shared_post_id = sp.id
                               LEFT JOIN users su ON sp.user_id = su.id
-                              WHERE posts.privacy = 'public' 
-                                 OR posts.user_id = $current_user_id
-                                 OR (posts.privacy = 'friends' AND posts.user_id IN (
-                                     SELECT sender_id FROM friends WHERE receiver_id = $current_user_id AND status = 'accepted'
-                                     UNION
-                                     SELECT receiver_id FROM friends WHERE sender_id = $current_user_id AND status = 'accepted'
-                                 ))
+                              LEFT JOIN `groups` g ON posts.group_id = g.id
+                              WHERE posts.status = 'approved' AND (
+                                  (posts.group_id IS NULL AND (
+                                     posts.privacy = 'public' 
+                                     OR posts.user_id = $current_user_id
+                                     OR (posts.privacy = 'friends' AND posts.user_id IN (
+                                         SELECT sender_id FROM friends WHERE receiver_id = $current_user_id AND status = 'accepted'
+                                         UNION
+                                         SELECT receiver_id FROM friends WHERE sender_id = $current_user_id AND status = 'accepted'
+                                     ))
+                                  ))
+                                  OR 
+                                  (posts.group_id IS NOT NULL AND posts.group_id IN (
+                                      SELECT group_id FROM group_members WHERE user_id = $current_user_id AND role IN ('member', 'admin')
+                                  ))
+                              )
                               ORDER BY posts.created_at DESC";
                 $result_posts = $conn->query($sql_posts);
 
@@ -150,11 +161,23 @@ $is_user_admin = is_admin($conn, $current_user_id);
                                          onerror="this.src='https://ui-avatars.com/api/?name=<?php echo urlencode($post['full_name']); ?>&background=random';">
 
                                     <div>
-                                        <h6 class="mb-0 fw-bold text-dark"><?php echo htmlspecialchars($post['full_name']); ?></h6>
+                                        <h6 class="mb-0 fw-bold text-dark d-flex align-items-center">
+                                            <a href="profile.php?user_id=<?php echo $post['user_id']; ?>" class="text-dark text-decoration-none"><?php echo htmlspecialchars($post['full_name']); ?></a>
+                                            <!-- HIỂN THỊ TÊN NHÓM NẾU BÀI VIẾT THUỘC VỀ NHÓM -->
+                                            <?php if (!empty($post['group_id'])): ?>
+                                                <i class="fa-solid fa-caret-right text-muted mx-2" style="font-size: 0.8rem;"></i>
+                                                <a href="group_detail.php?id=<?php echo $post['group_id']; ?>" class="text-dark text-decoration-none hover-underline"><?php echo htmlspecialchars($post['group_name']); ?></a>
+                                            <?php endif; ?>
+                                        </h6>
                                         <div class="text-muted d-flex align-items-center" style="font-size: 0.85rem;">
                                             <?php echo date('d/m/Y H:i', strtotime($post['created_at'])); ?> 
                                             <span class="mx-1">•</span>
-                                            <i class="fa-solid <?php echo $privacy_icon; ?>" title="Quyền riêng tư"></i>
+                                            <?php if (!empty($post['group_id'])): ?>
+                                                <i class="fa-solid fa-users text-primary" title="Đăng trong nhóm"></i>
+                                            <?php else: ?>
+                                                <i class="fa-solid <?php echo $privacy_icon; ?>" title="Quyền riêng tư"></i>
+                                            <?php endif; ?>
+                                            
                                             <?php if($post['shared_post_id']): ?>
                                                 <span class="mx-1">•</span>
                                                 <i class="fa-solid fa-share text-primary" title="Bài chia sẻ"></i>
@@ -218,11 +241,11 @@ $is_user_admin = is_admin($conn, $current_user_id);
                             <?php endif; ?>
 
                             <?php if (!empty($post['image_url']) && empty($post['shared_post_id'])): ?>
-                                <img src="<?php echo htmlspecialchars($post['image_url']); ?>" class="img-fluid rounded-3 border mb-2" alt="Post image">
+                                <img src="<?php echo htmlspecialchars($post['image_url']); ?>" class="img-fluid rounded-3 border mb-2 w-100" alt="Post image">
                             <?php endif; ?>
                             
                             <?php if (!empty($post['generated_image_url']) && empty($post['shared_post_id'])): ?>
-                                <img src="<?php echo htmlspecialchars($post['generated_image_url']); ?>" class="img-fluid rounded-3 border mb-2" alt="AI Generated Image">
+                                <img src="<?php echo htmlspecialchars($post['generated_image_url']); ?>" class="img-fluid rounded-3 border mb-2 w-100" alt="AI Generated Image">
                             <?php endif; ?>
                             
                             <div class="d-flex justify-content-between text-muted small mt-2 px-1">
@@ -298,16 +321,41 @@ $is_user_admin = is_admin($conn, $current_user_id);
                 ?>
             </div>
 
-            <!-- CỘT PHẢI CỦA BẠN (TRỐNG) -->
+            <!-- CỘT PHẢI: NGƯỜI LIÊN HỆ -->
             <div class="col-md-3 d-none d-md-block right-menu">
+                <div class="card p-3 shadow-sm border-0" style="border-radius: 16px;">
+                    <h6 class="fw-bold text-dark mb-3">Người liên hệ</h6>
+                    <ul class="list-unstyled mb-0">
+                        <?php
+                        $sql_contacts = "SELECT u.id, u.full_name, u.avatar_url FROM users u 
+                                         JOIN friends f ON (u.id = f.sender_id OR u.id = f.receiver_id) 
+                                         WHERE (f.sender_id = $current_user_id OR f.receiver_id = $current_user_id) 
+                                         AND u.id != $current_user_id AND f.status = 'accepted' LIMIT 10";
+                        $res_contacts = $conn->query($sql_contacts);
+                        if ($res_contacts && $res_contacts->num_rows > 0) {
+                            while($contact = $res_contacts->fetch_assoc()) {
+                        ?>
+                        <li class="d-flex align-items-center mb-3 p-1 rounded custom-hover" style="cursor: pointer;" onclick="location.href='profile.php?user_id=<?php echo $contact['id']; ?>'">
+                            <img src="<?php echo !empty($contact['avatar_url']) ? $contact['avatar_url'] : 'https://ui-avatars.com/api/?name='.urlencode($contact['full_name']).'&background=random'; ?>" 
+                                 class="rounded-circle me-2 object-fit-cover shadow-sm" width="35" height="35" style="object-fit: cover;"
+                                 onerror="this.src='https://ui-avatars.com/api/?name=<?php echo urlencode($contact['full_name']); ?>&background=random';">
+                            <span class="fw-bold fs-6 text-dark text-truncate" style="max-width: 150px;"><?php echo htmlspecialchars($contact['full_name']); ?></span>
+                            <div class="bg-success rounded-circle ms-auto" style="width: 8px; height: 8px;"></div>
+                        </li>
+                        <?php 
+                            }
+                        } else {
+                            echo '<li class="text-muted small fst-italic text-center py-3">Bạn chưa có người liên hệ nào. <br><a href="friends.php" class="text-primary text-decoration-none fw-bold">Tìm bạn ngay</a></li>';
+                        }
+                        ?>
+                    </ul>
+                </div>
             </div>
         </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <?php include 'includes/footer_scripts.php'; ?>
-    
-    <!-- TẤT CẢ JAVASCRIPT ĐÃ ĐƯỢC PHỤC HỒI ĐẦY ĐỦ Ở ĐÂY -->
     <script>
         // 1. CHUÔNG THÔNG BÁO
         const bellBtn = document.getElementById('bell-btn');

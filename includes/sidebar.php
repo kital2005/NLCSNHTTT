@@ -19,6 +19,11 @@ $active_menu = $active_menu ?? '';
             </a>
         </li>
         <li class="nav-item">
+            <a class="nav-link text-dark rounded-3 px-3 py-2 sidebar-link <?php echo ($active_menu == 'groups') ? 'active' : ''; ?>" href="groups.php">
+        <i class="fa-solid fa-users fa-fw me-2 <?php echo ($active_menu == 'groups') ? '' : 'text-warning'; ?>"></i> Nhóm cộng đồng
+            </a>
+        </li>
+        <li class="nav-item">
             <a class="nav-link text-dark rounded-3 px-3 py-2 sidebar-link <?php echo $active_menu === 'friends' ? 'active' : ''; ?>" href="friends.php">
                 <i class="fa-solid fa-user-group fa-fw me-2 text-info"></i> Bạn bè
             </a>

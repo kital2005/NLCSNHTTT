@@ -1,12 +1,18 @@
 <?php
 session_start();
 require_once 'db.php';
+require_once 'includes/helpers.php';
 
 if (!isset($_SESSION['user_id'])) {
     header("Location: login.php");
     exit();
 }
 $current_user_id = $_SESSION['user_id'];
+$active_menu = 'friends';
+
+$notif_count_query = $conn->query("SELECT COUNT(*) as total FROM notifications WHERE user_id = $current_user_id AND is_read = 0");
+$unread_notif_count = $notif_count_query->fetch_assoc()['total'];
+$is_user_admin = is_admin($conn, $current_user_id);
 ?>
 <!DOCTYPE html>
 <html lang="vi" data-bs-theme="light">
@@ -18,90 +24,23 @@ $current_user_id = $_SESSION['user_id'];
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     
+    <?php include 'includes/styles.php'; ?>
     <style>
-        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f4f6f8; }
-        [data-bs-theme="dark"] body { background-color: #0f172a; }
-        .navbar-custom { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border-bottom: 1px solid rgba(0,0,0,0.05); }
-        [data-bs-theme="dark"] .navbar-custom { background: rgba(30, 41, 59, 0.95); border-bottom: 1px solid rgba(255,255,255,0.05); }
-        
-        .friend-row-card { 
-            border: none; 
-            border-radius: 16px; 
-            background: #fff; 
-            box-shadow: 0 2px 10px rgba(0,0,0,0.02); 
-            transition: all 0.2s ease;
-            margin-bottom: 15px;
-        }
-        .friend-row-card:hover { 
-            transform: translateY(-2px); 
-            box-shadow: 0 5px 15px rgba(0,0,0,0.05); 
-            border-color: #e2e8f0;
-        }
+        .friend-row-card { border: none; border-radius: 16px; background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,0.02); transition: all 0.2s ease; margin-bottom: 15px;}
+        .friend-row-card:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,0,0,0.05); border-color: #e2e8f0;}
         [data-bs-theme="dark"] .friend-row-card { background-color: #1e293b; color: #f8fafc; }
-        
-        .avatar-compact {
-            width: 65px; 
-            height: 65px; 
-            object-fit: cover; 
-            border-radius: 50%;
-            border: 2px solid #f1f5f9;
-        }
+        .avatar-compact { width: 65px; height: 65px; object-fit: cover; border-radius: 50%; border: 2px solid #f1f5f9;}
         [data-bs-theme="dark"] .avatar-compact { border-color: #334155; }
-        
-        .left-menu { position: sticky; top: 80px; }
         .section-title { font-size: 1.1rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 20px; color: #64748b; }
     </style>
 </head>
 <body>
 
-    <nav class="navbar navbar-expand-lg navbar-custom sticky-top py-2">
-        <div class="container">
-            <a class="navbar-brand fw-bold text-primary fs-4" href="index.php">
-                <i class="fa-solid fa-earth-asia me-1"></i> SocialAI
-            </a>
-            
-            <div class="d-none d-md-block w-25">
-                <form action="search.php" method="GET" class="w-100 m-0">
-                    <div class="input-group">
-                        <span class="input-group-text bg-light border-0 rounded-start-pill text-muted"><i class="fa-solid fa-magnifying-glass"></i></span>
-                        <input type="text" name="q" class="form-control bg-light border-0 rounded-end-pill" placeholder="Tìm kiếm bạn bè, bài viết..." value="<?php echo isset($_GET['q']) ? htmlspecialchars($_GET['q']) : ''; ?>" required>
-                    </div>
-                </form>
-            </div>
-
-            <div class="d-flex align-items-center gap-2">
-                <button id="btn-darkmode" class="btn btn-light rounded-circle shadow-sm" style="width: 40px; height: 40px;">
-                    <i class="fa-solid fa-moon"></i>
-                </button>
-                <a href="profile.php" class="text-decoration-none">
-                    <div class="d-flex align-items-center bg-light rounded-pill px-2 py-1 shadow-sm" data-bs-theme="light">
-                        <?php if (!empty($_SESSION['avatar_url'])): ?>
-                            <img src="<?php echo htmlspecialchars($_SESSION['avatar_url']); ?>" class="rounded-circle me-md-2" style="width: 32px; height: 32px; object-fit: cover;">
-                        <?php else: ?>
-                            <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center me-md-2" style="width: 32px; height: 32px; flex-shrink: 0;">
-                                <?php echo mb_substr($_SESSION['full_name'], 0, 1, "UTF-8"); ?>
-                            </div>
-                        <?php endif; ?>
-                        <span class="fw-bold fs-6 pe-2 text-dark text-nowrap d-none d-md-inline-block text-truncate" style="max-width: 120px;">
-                            <?php echo htmlspecialchars($_SESSION['full_name']); ?>
-                        </span>
-                    </div>
-                </a>
-            </div>
-        </div>
-    </nav>
+    <?php include 'includes/navbar.php'; ?>
 
     <div class="container mt-4">
         <div class="row">
-            <div class="col-md-3 d-none d-md-block left-menu">
-                <ul class="nav flex-column font-weight-bold gap-1">
-                    <li class="nav-item"><a class="nav-link text-dark rounded-3 px-3 py-2 custom-hover" href="index.php"><i class="fa-solid fa-house fa-fw me-2 text-primary"></i> Bảng tin</a></li>
-                    <li class="nav-item"><a class="nav-link text-dark rounded-3 px-3 py-2 custom-hover" href="profile.php"><i class="fa-solid fa-user fa-fw me-2 text-success"></i> Trang cá nhân</a></li>
-                    <li class="nav-item"><a class="nav-link text-dark rounded-3 px-3 py-2 bg-info bg-opacity-10 text-info fw-bold" href="friends.php"><i class="fa-solid fa-user-group fa-fw me-2"></i> Bạn bè</a></li>
-                    <hr class="my-2">
-                    <li class="nav-item"><a class="nav-link text-dark rounded-3 px-3 py-2 custom-hover" href="#"><i class="fa-solid fa-users fa-fw me-2 text-warning"></i> Nhóm (Sắp ra mắt)</a></li>
-                </ul>
-            </div>
+            <?php include 'includes/sidebar.php'; ?>
 
             <div class="col-md-9">
                 <div class="bg-white p-4 rounded-4 shadow-sm" data-bs-theme="light">
@@ -114,16 +53,12 @@ $current_user_id = $_SESSION['user_id'];
                         
                         if ($res_requests && $res_requests->num_rows > 0) {
                             while($req = $res_requests->fetch_assoc()) {
-                                $initial = mb_substr($req['full_name'], 0, 1, "UTF-8");
                         ?>
                         <div class="col-md-6 user-card-wrapper" id="user-card-<?php echo $req['id']; ?>">
                             <div class="friend-row-card p-3 border">
                                 <div class="d-flex align-items-center">
-                                    <?php if(!empty($req['avatar_url'])): ?>
-                                        <img src="<?php echo $req['avatar_url']; ?>" class="avatar-compact me-3">
-                                    <?php else: ?>
-                                        <div class="avatar-compact d-flex justify-content-center align-items-center fw-bold fs-4 text-white bg-primary me-3"><?php echo $initial; ?></div>
-                                    <?php endif; ?>
+                                    <img src="<?php echo !empty($req['avatar_url']) ? $req['avatar_url'] : 'https://ui-avatars.com/api/?name='.urlencode($req['full_name']).'&background=random'; ?>" 
+                                         class="avatar-compact me-3" onerror="this.src='https://ui-avatars.com/api/?name=<?php echo urlencode($req['full_name']); ?>&background=random';">
                                     
                                     <div class="flex-grow-1">
                                         <h6 class="fw-bold mb-0 text-dark"><?php echo htmlspecialchars($req['full_name']); ?></h6>
@@ -157,16 +92,12 @@ $current_user_id = $_SESSION['user_id'];
                         
                         if ($res_suggest && $res_suggest->num_rows > 0) {
                             while($sug = $res_suggest->fetch_assoc()) {
-                                $initial = mb_substr($sug['full_name'], 0, 1, "UTF-8");
                         ?>
                         <div class="col-md-6 user-card-wrapper" id="user-card-<?php echo $sug['id']; ?>">
                             <div class="friend-row-card p-3 border">
                                 <div class="d-flex align-items-center">
-                                    <?php if(!empty($sug['avatar_url'])): ?>
-                                        <img src="<?php echo $sug['avatar_url']; ?>" class="avatar-compact me-3">
-                                    <?php else: ?>
-                                        <div class="avatar-compact d-flex justify-content-center align-items-center fw-bold fs-4 text-white bg-success me-3"><?php echo $initial; ?></div>
-                                    <?php endif; ?>
+                                    <img src="<?php echo !empty($sug['avatar_url']) ? $sug['avatar_url'] : 'https://ui-avatars.com/api/?name='.urlencode($sug['full_name']).'&background=random'; ?>" 
+                                         class="avatar-compact me-3" onerror="this.src='https://ui-avatars.com/api/?name=<?php echo urlencode($sug['full_name']); ?>&background=random';">
                                     
                                     <div class="flex-grow-1">
                                         <h6 class="fw-bold mb-0 text-dark"><?php echo htmlspecialchars($sug['full_name']); ?></h6>
@@ -199,16 +130,12 @@ $current_user_id = $_SESSION['user_id'];
                         
                         if ($res_friends && $res_friends->num_rows > 0) {
                             while($fr = $res_friends->fetch_assoc()) {
-                                $initial = mb_substr($fr['full_name'], 0, 1, "UTF-8");
                         ?>
                         <div class="col-md-6 user-card-wrapper" id="user-card-<?php echo $fr['id']; ?>">
                             <div class="friend-row-card p-3 border bg-light">
                                 <div class="d-flex align-items-center">
-                                    <?php if(!empty($fr['avatar_url'])): ?>
-                                        <img src="<?php echo $fr['avatar_url']; ?>" class="avatar-compact me-3">
-                                    <?php else: ?>
-                                        <div class="avatar-compact d-flex justify-content-center align-items-center fw-bold fs-4 text-white bg-info me-3"><?php echo $initial; ?></div>
-                                    <?php endif; ?>
+                                    <img src="<?php echo !empty($fr['avatar_url']) ? $fr['avatar_url'] : 'https://ui-avatars.com/api/?name='.urlencode($fr['full_name']).'&background=random'; ?>" 
+                                         class="avatar-compact me-3" onerror="this.src='https://ui-avatars.com/api/?name=<?php echo urlencode($fr['full_name']); ?>&background=random';">
                                     
                                     <div class="flex-grow-1">
                                         <h6 class="fw-bold mb-0 text-dark"><?php echo htmlspecialchars($fr['full_name']); ?></h6>
@@ -230,31 +157,14 @@ $current_user_id = $_SESSION['user_id'];
                         }
                         ?>
                     </div>
-
                 </div>
             </div>
         </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <?php include 'includes/footer_scripts.php'; ?>
     <script>
-        const btnDarkMode = document.getElementById('btn-darkmode');
-        const htmlElement = document.documentElement;
-        const iconDarkMode = btnDarkMode.querySelector('i');
-        const currentTheme = localStorage.getItem('theme') || 'light';
-        setTheme(currentTheme);
-
-        btnDarkMode.addEventListener('click', () => {
-            setTheme(htmlElement.getAttribute('data-bs-theme') === 'light' ? 'dark' : 'light');
-        });
-
-        function setTheme(theme) {
-            htmlElement.setAttribute('data-bs-theme', theme);
-            localStorage.setItem('theme', theme);
-            iconDarkMode.className = theme === 'dark' ? 'fa-solid fa-sun text-warning' : 'fa-solid fa-moon';
-        }
-
-        // XỬ LÝ AJAX KẾT BẠN
         document.querySelectorAll('.btn-action').forEach(button => {
             button.addEventListener('click', async function() {
                 const action = this.getAttribute('data-action');

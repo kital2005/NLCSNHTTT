@@ -61,58 +61,18 @@ $is_user_admin = is_admin($conn, $current_user_id);
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     
+    <?php include 'includes/styles.php'; ?>
     <style>
-        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f4f6f8; }
-        [data-bs-theme="dark"] body { background-color: #0f172a; }
-        .navbar-custom { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border-bottom: 1px solid rgba(0,0,0,0.05); }
-        [data-bs-theme="dark"] .navbar-custom { background: rgba(30, 41, 59, 0.95); border-bottom: 1px solid rgba(255,255,255,0.05); }
-        .card { border: none; border-radius: 16px; box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04); margin-bottom: 20px; }
-        [data-bs-theme="dark"] .card { background-color: #1e293b; color: #f8fafc; }
-        [data-bs-theme="dark"] .text-dark { color: #f8fafc !important; }
-        [data-bs-theme="dark"] .text-muted { color: #94a3b8 !important; }
-        [data-bs-theme="dark"] .form-control { background-color: #334155; color: #f8fafc; border: none; }
-        [data-bs-theme="dark"] .modal-content { background-color: #1e293b; color: #f8fafc; }
-        
-        .profile-container { max-width: 800px; margin: 0 auto; }
-        .cover-photo {
-            width: 100%;
-            height: 250px;
-            object-fit: cover;
-            border-bottom-left-radius: 16px;
-            border-bottom-right-radius: 16px;
-            background-color: #e2e8f0;
-        }
+        .profile-container { margin: 0 auto; }
+        .cover-photo { width: 100%; height: 250px; object-fit: cover; border-bottom-left-radius: 16px; border-bottom-right-radius: 16px; background-color: #e2e8f0; }
         .profile-header-wrapper { position: relative; margin-bottom: 20px; background: transparent; }
-        
-        .avatar-profile {
-            width: 140px;
-            height: 140px;
-            object-fit: contain; 
-            background-color: #f1f5f9;
-            border-radius: 50%;
-            border: 4px solid #fff;
-            position: absolute;
-            bottom: -50px;
-            left: 30px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-        }
+        .avatar-profile { width: 140px; height: 140px; object-fit: contain; background-color: #f1f5f9; border-radius: 50%; border: 4px solid #fff; position: absolute; bottom: -50px; left: 30px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
         [data-bs-theme="dark"] .avatar-profile { border-color: #1e293b; background-color: #334155; }
-        
         .profile-actions { padding-top: 15px; padding-right: 20px; display: flex; justify-content: flex-end; }
         .profile-details { padding: 20px 30px 10px 30px; margin-top: 10px; }
-        
-        .custom-file-upload {
-            border: 2px dashed #cbd5e1;
-            border-radius: 12px;
-            padding: 20px;
-            text-align: center;
-            cursor: pointer;
-            transition: 0.3s;
-            display: block;
-        }
+        .custom-file-upload { border: 2px dashed #cbd5e1; border-radius: 12px; padding: 20px; text-align: center; cursor: pointer; transition: 0.3s; display: block; }
         .custom-file-upload:hover { border-color: #0ea5e9; background-color: rgba(14, 165, 233, 0.05); }
         .img-preview { max-width: 100%; height: 150px; object-fit: contain; border-radius: 8px; display: none; margin: 10px auto 0; }
-        
         .comment-box { background-color: #f8fafc; border-radius: 12px; padding: 10px 15px; }
         [data-bs-theme="dark"] .comment-box { background-color: #0f172a; }
         .btn-like.liked { color: #0ea5e9 !important; font-weight: bold; }
@@ -120,259 +80,266 @@ $is_user_admin = is_admin($conn, $current_user_id);
 </head>
 <body>
 
-    <nav class="navbar navbar-expand-lg navbar-custom sticky-top py-2">
-        <div class="container">
-            <a class="navbar-brand fw-bold text-primary fs-5" href="index.php">
-                <i class="fa-solid fa-arrow-left me-2"></i> Trở về Bảng tin
-            </a>
-            
-            <div class="d-none d-md-block w-25">
-                <form action="search.php" method="GET" class="w-100 m-0">
-                    <div class="input-group">
-                        <span class="input-group-text bg-light border-0 rounded-start-pill text-muted"><i class="fa-solid fa-magnifying-glass"></i></span>
-                        <input type="text" name="q" class="form-control bg-light border-0 rounded-end-pill" placeholder="Tìm kiếm bạn bè, bài viết..." value="<?php echo isset($_GET['q']) ? htmlspecialchars($_GET['q']) : ''; ?>" required>
-                    </div>
-                </form>
-            </div>
+    <?php include 'includes/navbar.php'; ?>
 
-            <div class="d-flex align-items-center gap-3">
-                <button id="btn-darkmode" class="btn btn-light rounded-circle shadow-sm" style="width: 40px; height: 40px;">
-                    <i class="fa-solid fa-moon"></i>
-                </button>
-            </div>
-        </div>
-    </nav>
+    <div class="container mt-4">
+        <div class="row">
+            <?php include 'includes/sidebar.php'; ?>
 
-    <div class="profile-container mt-2">
-        
-        <div class="card shadow-sm border-0 pb-3 mb-4">
-            <div class="profile-header-wrapper">
-                <?php if (!empty($user['cover_url'])): ?>
-                    <img src="<?php echo htmlspecialchars($user['cover_url']); ?>" class="cover-photo">
-                <?php else: ?>
-                    <div class="cover-photo d-flex justify-content-center align-items-center text-muted" style="background: linear-gradient(135deg, #e2e8f0, #cbd5e1);">
-                        <i class="fa-solid fa-camera fa-3x opacity-25"></i>
-                    </div>
-                <?php endif; ?>
+            <div class="col-md-9 profile-container">
                 
-                <?php if (!empty($user['avatar_url'])): ?>
-                    <img src="<?php echo htmlspecialchars($user['avatar_url']); ?>" class="avatar-profile">
-                <?php else: ?>
-                    <div class="avatar-profile d-flex justify-content-center align-items-center text-white fw-bold" style="background: linear-gradient(135deg, #0ea5e9, #6366f1); font-size: 3rem;">
-                        <?php echo mb_substr($user['full_name'], 0, 1, "UTF-8"); ?>
-                    </div>
-                <?php endif; ?>
-            </div>
-            
-            <div class="profile-actions">
-                <?php if ($is_own_profile): ?>
-                <button class="btn btn-outline-dark fw-bold rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#editProfileModal">
-                    <i class="fa-solid fa-pen me-2"></i> Chỉnh sửa hồ sơ
-                </button>
-                <?php else: ?>
-                    <?php if ($friend_status === 'none'): ?>
-                    <button class="btn btn-primary fw-bold rounded-pill px-4 btn-friend-action" data-action="add" data-target="<?php echo $profile_user_id; ?>"><i class="fa-solid fa-user-plus me-1"></i> Kết bạn</button>
-                    <?php elseif ($friend_status === 'pending_sent'): ?>
-                    <button class="btn btn-light fw-bold rounded-pill px-4 btn-friend-action" data-action="cancel" data-target="<?php echo $profile_user_id; ?>">Hủy lời mời</button>
-                    <?php elseif ($friend_status === 'pending_received'): ?>
-                    <button class="btn btn-success fw-bold rounded-pill px-4 btn-friend-action" data-action="accept" data-target="<?php echo $profile_user_id; ?>"><i class="fa-solid fa-check me-1"></i> Chấp nhận</button>
-                    <?php else: ?>
-                    <button class="btn btn-outline-secondary fw-bold rounded-pill px-4 btn-friend-action" data-action="unfriend" data-target="<?php echo $profile_user_id; ?>"><i class="fa-solid fa-user-minus me-1"></i> Hủy kết bạn</button>
-                    <?php endif; ?>
-                <?php endif; ?>
-            </div>
-            
-            <div class="profile-details">
-                <h3 class="fw-bold mb-0 text-dark"><?php echo htmlspecialchars($user['full_name']); ?></h3>
-                <p class="text-muted mb-2">@<?php echo htmlspecialchars($user['username']); ?></p>
-                
-                <?php if (!empty($user['bio'])): ?>
-                    <p class="text-dark mb-3" style="white-space: pre-wrap; font-size: 0.95rem;"><?php echo htmlspecialchars($user['bio']); ?></p>
-                <?php endif; ?>
-                
-                <div class="d-flex gap-4 text-muted small mt-2">
-                    <span><i class="fa-solid fa-file-lines me-1"></i> <strong class="text-dark"><?php echo $post_count; ?></strong> bài viết</span>
-                    <span><i class="fa-solid fa-heart me-1"></i> <strong class="text-dark"><?php echo $total_likes; ?></strong> lượt thích nhận được</span>
-                    <span><i class="fa-solid fa-calendar-days me-1"></i> Tham gia năm <?php echo date('Y', strtotime($user['created_at'])); ?></span>
-                </div>
-            </div>
-        </div>
-
-        <h5 class="fw-bold mb-3 text-dark px-2"><?php echo $is_own_profile ? 'Bài viết của bạn' : 'Bài viết'; ?></h5>
-
-        <?php
-        $sql_posts = "SELECT posts.*, users.full_name, users.avatar_url,
-                        (SELECT COUNT(*) FROM likes WHERE post_id = posts.id) as like_count,
-                        (SELECT COUNT(*) FROM likes WHERE post_id = posts.id AND user_id = $current_user_id) as user_liked,
-                        (SELECT COUNT(*) FROM comments WHERE post_id = posts.id) as comment_count
-                      FROM posts 
-                      JOIN users ON posts.user_id = users.id 
-                      WHERE $posts_where
-                      ORDER BY posts.created_at DESC";
-        $result_posts = $conn->query($sql_posts);
-
-        if ($result_posts && $result_posts->num_rows > 0) {
-            while($post = $result_posts->fetch_assoc()) {
-                $first_letter = mb_substr($post['full_name'], 0, 1, "UTF-8");
-                $privacy_icon = 'fa-earth-asia';
-                if ($post['privacy'] == 'friends') $privacy_icon = 'fa-user-group';
-                if ($post['privacy'] == 'private') $privacy_icon = 'fa-lock';
-                
-                $is_liked_class = ($post['user_liked'] > 0) ? 'liked' : '';
-                $like_icon = ($post['user_liked'] > 0) ? 'fa-solid' : 'fa-regular';
-                
-                $likers_sql = "SELECT u.full_name FROM likes l JOIN users u ON l.user_id = u.id WHERE l.post_id = {$post['id']} ORDER BY l.created_at DESC LIMIT 2";
-                $likers_res = $conn->query($likers_sql);
-                $liker_names = [];
-                while($liker = $likers_res->fetch_assoc()) {
-                    $liker_names[] = ($liker['full_name'] == $user['full_name']) ? "Bạn" : $liker['full_name'];
-                }
-                $like_text = "";
-                if ($post['like_count'] > 0) {
-                    $like_text = implode(", ", $liker_names);
-                    if ($post['like_count'] > count($liker_names)) {
-                        $like_text .= " và " . ($post['like_count'] - count($liker_names)) . " người khác";
-                    }
-                }
-        ?>
-                <div class="card p-3 shadow-sm border-0 mb-4" style="border-radius: 16px;">
-                    <div class="d-flex justify-content-between align-items-start mb-2">
-                        <div class="d-flex align-items-center">
-                            <?php if (!empty($post['avatar_url'])): ?>
-                                <img src="<?php echo htmlspecialchars($post['avatar_url']); ?>" class="rounded-circle me-2 shadow-sm" style="width: 45px; height: 45px; object-fit: contain; background:#f1f5f9;">
-                            <?php else: ?>
-                                <div class="rounded-circle bg-primary text-white d-flex justify-content-center align-items-center me-2 fw-bold fs-5 shadow-sm" style="width: 45px; height: 45px;">
-                                    <?php echo $first_letter; ?>
-                                </div>
-                            <?php endif; ?>
-
-                            <div>
-                                <h6 class="mb-0 fw-bold text-dark"><?php echo htmlspecialchars($post['full_name']); ?></h6>
-                                <div class="text-muted d-flex align-items-center" style="font-size: 0.85rem;">
-                                    <?php echo date('d/m/Y H:i', strtotime($post['created_at'])); ?> 
-                                    <span class="mx-1">•</span>
-                                    <i class="fa-solid <?php echo $privacy_icon; ?>" title="Quyền riêng tư"></i>
-                                </div>
+                <div class="card shadow-sm border-0 pb-3 mb-4">
+                    <div class="profile-header-wrapper">
+                        <?php if (!empty($user['cover_url'])): ?>
+                            <img src="<?php echo htmlspecialchars($user['cover_url']); ?>" class="cover-photo">
+                        <?php else: ?>
+                            <div class="cover-photo d-flex justify-content-center align-items-center text-muted" style="background: linear-gradient(135deg, #e2e8f0, #cbd5e1);">
+                                <i class="fa-solid fa-camera fa-3x opacity-25"></i>
                             </div>
-                        </div>
+                        <?php endif; ?>
                         
-                        <div class="d-flex align-items-center gap-2">
-                            <?php if (!empty($post['ai_topic'])): ?>
-                                <span class="badge bg-primary bg-opacity-10 text-primary border border-primary rounded-pill px-2 py-1">
-                                    <i class="fa-solid fa-microchip me-1"></i> <?php echo htmlspecialchars($post['ai_topic']); ?>
-                                </span>
-                            <?php endif; ?>
-                            
-                            <?php if ($is_own_profile): ?>
-                            <div class="dropdown">
-                                <button class="btn btn-light btn-sm rounded-circle text-muted" type="button" data-bs-toggle="dropdown" style="width: 35px; height: 35px;">
-                                    <i class="fa-solid fa-ellipsis"></i>
-                                </button>
-                                <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0">
-                                    <li><a class="dropdown-item py-2" href="edit_post.php?id=<?php echo $post['id']; ?>"><i class="fa-solid fa-pen me-2"></i> Chỉnh sửa bài</a></li>
-                                    <li><a class="dropdown-item text-danger py-2" href="delete_post.php?id=<?php echo $post['id']; ?>" onclick="return confirm('Bạn có chắc chắn muốn xóa bài viết này không?');"><i class="fa-solid fa-trash me-2"></i> Xóa bài viết</a></li>
-                                </ul>
-                            </div>
-                            <?php endif; ?>
-                        </div>
+                        <img src="<?php echo !empty($user['avatar_url']) ? $user['avatar_url'] : 'https://ui-avatars.com/api/?name='.urlencode($user['full_name']).'&background=random'; ?>" 
+                             class="avatar-profile" onerror="this.src='https://ui-avatars.com/api/?name=<?php echo urlencode($user['full_name']); ?>&background=random';">
                     </div>
                     
-                    <p class="mb-2 mt-2 text-dark" style="white-space: pre-wrap;"><?php echo htmlspecialchars($post['content']); ?></p>
-                    
-                    <?php if (!empty($post['image_url'])): ?>
-                        <div class="rounded-3 overflow-hidden border mb-2">
-                            <img src="<?php echo htmlspecialchars($post['image_url']); ?>" class="img-fluid w-100" alt="Post image">
-                        </div>
-                    <?php endif; ?>
-                    
-                    <?php if (!empty($post['generated_image_url'])): ?>
-                        <div class="rounded-3 overflow-hidden border mb-2">
-                            <img src="<?php echo htmlspecialchars($post['generated_image_url']); ?>" class="img-fluid w-100" alt="AI Image">
-                        </div>
-                    <?php endif; ?>
-                    
-                    <div class="d-flex justify-content-between text-muted small mt-2 px-1">
-                        <span class="d-flex align-items-center">
-                            <i class="fa-solid fa-thumbs-up text-primary me-2 bg-primary bg-opacity-10 p-1 rounded-circle"></i> 
-                            <span id="like-text-<?php echo $post['id']; ?>">
-                                <?php echo $post['like_count'] > 0 ? htmlspecialchars($like_text) : "0 lượt thích"; ?>
-                            </span>
-                            <span id="like-count-<?php echo $post['id']; ?>" class="d-none"><?php echo $post['like_count']; ?></span>
-                        </span>
-                        <span><span id="comment-count-<?php echo $post['id']; ?>"><?php echo $post['comment_count']; ?></span> bình luận</span>
+                    <div class="profile-actions">
+                        <?php if ($is_own_profile): ?>
+                        <button class="btn btn-outline-dark fw-bold rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#editProfileModal">
+                            <i class="fa-solid fa-pen me-2"></i> Chỉnh sửa hồ sơ
+                        </button>
+                        <?php else: ?>
+                            <?php if ($friend_status === 'none'): ?>
+                            <button class="btn btn-primary fw-bold rounded-pill px-4 btn-friend-action" data-action="add" data-target="<?php echo $profile_user_id; ?>"><i class="fa-solid fa-user-plus me-1"></i> Kết bạn</button>
+                            <?php elseif ($friend_status === 'pending_sent'): ?>
+                            <button class="btn btn-light fw-bold rounded-pill px-4 btn-friend-action" data-action="cancel" data-target="<?php echo $profile_user_id; ?>">Hủy lời mời</button>
+                            <?php elseif ($friend_status === 'pending_received'): ?>
+                            <button class="btn btn-success fw-bold rounded-pill px-4 btn-friend-action" data-action="accept" data-target="<?php echo $profile_user_id; ?>"><i class="fa-solid fa-check me-1"></i> Chấp nhận</button>
+                            <?php else: ?>
+                            <button class="btn btn-outline-secondary fw-bold rounded-pill px-4 btn-friend-action" data-action="unfriend" data-target="<?php echo $profile_user_id; ?>"><i class="fa-solid fa-user-minus me-1"></i> Hủy kết bạn</button>
+                            <?php endif; ?>
+                        <?php endif; ?>
                     </div>
+                    
+                    <div class="profile-details">
+                        <h3 class="fw-bold mb-0 text-dark"><?php echo htmlspecialchars($user['full_name']); ?></h3>
+                        <p class="text-muted mb-2">@<?php echo htmlspecialchars($user['username']); ?></p>
+                        
+                        <?php if (!empty($user['bio'])): ?>
+                            <p class="text-dark mb-3" style="white-space: pre-wrap; font-size: 0.95rem;"><?php echo htmlspecialchars($user['bio']); ?></p>
+                        <?php endif; ?>
+                        
+                        <div class="d-flex gap-4 text-muted small mt-2">
+                            <span><i class="fa-solid fa-file-lines me-1"></i> <strong class="text-dark"><?php echo $post_count; ?></strong> bài viết</span>
+                            <span><i class="fa-solid fa-heart me-1"></i> <strong class="text-dark"><?php echo $total_likes; ?></strong> lượt thích nhận được</span>
+                            <span><i class="fa-solid fa-calendar-days me-1"></i> Tham gia năm <?php echo date('Y', strtotime($user['created_at'])); ?></span>
+                        </div>
+                    </div>
+                </div>
 
-                    <hr class="my-2 opacity-25">
-                    
-                    <div class="d-flex justify-content-between px-md-2">
-                        <button class="btn btn-light fw-bold flex-grow-1 me-1 text-muted btn-like <?php echo $is_liked_class; ?>" data-post-id="<?php echo $post['id']; ?>">
-                            <i class="<?php echo $like_icon; ?> fa-thumbs-up me-1" id="like-icon-<?php echo $post['id']; ?>"></i> Thích
-                        </button>
-                        <button class="btn btn-light fw-bold flex-grow-1 mx-1 text-muted" onclick="document.getElementById('comment-input-<?php echo $post['id']; ?>').focus();">
-                            <i class="fa-regular fa-message me-1"></i> Bình luận
-                        </button>
-                        <button class="btn btn-light fw-bold flex-grow-1 ms-1 text-muted"><i class="fa-solid fa-share me-1"></i> Chia sẻ</button>
-                    </div>
-                    
-                    <hr class="my-2 opacity-25">
-                    
-                    <div class="mt-3">
-                        <div id="comment-list-<?php echo $post['id']; ?>">
-                            <?php
-                            $post_id_cmt = $post['id'];
-                            $sql_cmts = "SELECT c.*, u.full_name, u.avatar_url FROM comments c JOIN users u ON c.user_id = u.id WHERE c.post_id = $post_id_cmt ORDER BY c.created_at ASC";
-                            $res_cmts = $conn->query($sql_cmts);
-                            if ($res_cmts && $res_cmts->num_rows > 0) {
-                                while($cmt = $res_cmts->fetch_assoc()) {
-                                    $cmt_letter = mb_substr($cmt['full_name'], 0, 1, "UTF-8");
-                            ?>
-                                <div class="d-flex mb-3">
-                                    <?php if (!empty($cmt['avatar_url'])): ?>
-                                        <img src="<?php echo htmlspecialchars($cmt['avatar_url']); ?>" class="rounded-circle me-2 mt-1" style="width: 32px; height: 32px; object-fit: contain; background:#f1f5f9; flex-shrink: 0;">
-                                    <?php else: ?>
-                                        <div class="rounded-circle bg-secondary text-white d-flex justify-content-center align-items-center me-2 mt-1" style="width: 32px; height: 32px; flex-shrink: 0; font-size: 0.85rem;">
-                                            <?php echo $cmt_letter; ?>
+                <h5 class="fw-bold mb-3 text-dark px-2"><?php echo $is_own_profile ? 'Bài viết của bạn' : 'Bài viết'; ?></h5>
+
+                <?php
+                // Cập nhật truy vấn để hiển thị trạng thái đã Lưu và thông tin Chia sẻ
+                $sql_posts = "SELECT posts.*, users.full_name, users.avatar_url,
+                                (SELECT COUNT(*) FROM likes WHERE post_id = posts.id) as like_count,
+                                (SELECT COUNT(*) FROM likes WHERE post_id = posts.id AND user_id = $current_user_id) as user_liked,
+                                (SELECT COUNT(*) FROM comments WHERE post_id = posts.id) as comment_count,
+                                (SELECT COUNT(*) FROM saved_posts WHERE post_id = posts.id AND user_id = $current_user_id) as is_saved,
+                                sp.content as shared_content, sp.image_url as shared_image_url, sp.generated_image_url as shared_generated_image_url, sp.ai_topic as shared_ai_topic, sp.created_at as shared_created_at,
+                                su.full_name as shared_full_name, su.avatar_url as shared_avatar_url
+                              FROM posts 
+                              JOIN users ON posts.user_id = users.id 
+                              LEFT JOIN posts sp ON posts.shared_post_id = sp.id
+                              LEFT JOIN users su ON sp.user_id = su.id
+                              WHERE $posts_where
+                              ORDER BY posts.created_at DESC";
+                $result_posts = $conn->query($sql_posts);
+
+                if ($result_posts && $result_posts->num_rows > 0) {
+                    while($post = $result_posts->fetch_assoc()) {
+                        $privacy_icon = 'fa-earth-asia';
+                        if ($post['privacy'] == 'friends') $privacy_icon = 'fa-user-group';
+                        if ($post['privacy'] == 'private') $privacy_icon = 'fa-lock';
+                        
+                        $is_liked_class = ($post['user_liked'] > 0) ? 'liked' : '';
+                        $like_icon = ($post['user_liked'] > 0) ? 'fa-solid' : 'fa-regular';
+                        
+                        $likers_sql = "SELECT u.full_name FROM likes l JOIN users u ON l.user_id = u.id WHERE l.post_id = {$post['id']} ORDER BY l.created_at DESC LIMIT 2";
+                        $likers_res = $conn->query($likers_sql);
+                        $liker_names = [];
+                        while($liker = $likers_res->fetch_assoc()) {
+                            $liker_names[] = ($liker['full_name'] == $user['full_name']) ? "Bạn" : $liker['full_name'];
+                        }
+                        $like_text = "";
+                        if ($post['like_count'] > 0) {
+                            $like_text = implode(", ", $liker_names);
+                            if ($post['like_count'] > count($liker_names)) {
+                                $like_text .= " và " . ($post['like_count'] - count($liker_names)) . " người khác";
+                            }
+                        }
+                ?>
+                        <div class="card p-3 shadow-sm border-0 mb-4" id="post-<?php echo $post['id']; ?>" style="border-radius: 16px;">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <div class="d-flex align-items-center">
+                                    <img src="<?php echo !empty($post['avatar_url']) ? $post['avatar_url'] : 'https://ui-avatars.com/api/?name='.urlencode($post['full_name']).'&background=random'; ?>" 
+                                         class="rounded-circle me-2 shadow-sm" style="width: 45px; height: 45px; object-fit: contain; background:#f1f5f9;"
+                                         onerror="this.src='https://ui-avatars.com/api/?name=<?php echo urlencode($post['full_name']); ?>&background=random';">
+
+                                    <div>
+                                        <h6 class="mb-0 fw-bold text-dark"><?php echo htmlspecialchars($post['full_name']); ?></h6>
+                                        <div class="text-muted d-flex align-items-center" style="font-size: 0.85rem;">
+                                            <?php echo date('d/m/Y H:i', strtotime($post['created_at'])); ?> 
+                                            <span class="mx-1">•</span>
+                                            <i class="fa-solid <?php echo $privacy_icon; ?>" title="Quyền riêng tư"></i>
+                                            <?php if($post['shared_post_id']): ?>
+                                                <span class="mx-1">•</span>
+                                                <i class="fa-solid fa-share text-primary" title="Bài chia sẻ"></i>
+                                            <?php endif; ?>
                                         </div>
-                                    <?php endif; ?>
-                                    
-                                    <div class="comment-box">
-                                        <h6 class="mb-0 fw-bold fs-6 text-dark"><?php echo htmlspecialchars($cmt['full_name']); ?></h6>
-                                        <p class="mb-0 text-dark" style="font-size: 0.95rem;"><?php echo htmlspecialchars($cmt['content']); ?></p>
                                     </div>
                                 </div>
-                            <?php 
-                                } 
-                            } 
-                            ?>
-                        </div>
-                        
-                        <div class="d-flex mt-2">
-                            <?php if (!empty($_SESSION['avatar_url'])): ?>
-                                <img src="<?php echo htmlspecialchars($_SESSION['avatar_url']); ?>" class="rounded-circle me-2 mt-1 shadow-sm" style="width: 32px; height: 32px; object-fit: contain; background:#f1f5f9; flex-shrink: 0;">
-                            <?php else: ?>
-                                <div class="rounded-circle bg-primary text-white d-flex justify-content-center align-items-center me-2 mt-1 shadow-sm" style="width: 32px; height: 32px; flex-shrink: 0;">
-                                    <?php echo mb_substr($_SESSION['full_name'], 0, 1, "UTF-8"); ?>
+                                
+                                <div class="d-flex align-items-center gap-2">
+                                    <?php if (!empty($post['ai_topic'])): ?>
+                                        <span class="badge bg-primary bg-opacity-10 text-primary border border-primary rounded-pill px-2 py-1">
+                                            <i class="fa-solid fa-microchip me-1"></i> <?php echo htmlspecialchars($post['ai_topic']); ?>
+                                        </span>
+                                    <?php endif; ?>
+                                    
+                                    <div class="dropdown">
+                                        <button class="btn btn-light btn-sm rounded-circle text-muted" type="button" data-bs-toggle="dropdown" style="width: 35px; height: 35px;">
+                                            <i class="fa-solid fa-ellipsis"></i>
+                                        </button>
+                                        <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0">
+                                            <?php if ($post['is_saved'] > 0): ?>
+                                                <li><a class="dropdown-item btn-save-post" href="javascript:void(0)" data-post-id="<?php echo $post['id']; ?>"><i class="fa-solid fa-bookmark text-primary me-2"></i> Bỏ lưu bài viết</a></li>
+                                            <?php else: ?>
+                                                <li><a class="dropdown-item btn-save-post" href="javascript:void(0)" data-post-id="<?php echo $post['id']; ?>"><i class="fa-regular fa-bookmark me-2"></i> Lưu bài viết</a></li>
+                                            <?php endif; ?>
+
+                                            <?php if ($is_own_profile): ?>
+                                            <li><hr class="dropdown-divider"></li>
+                                            <li><a class="dropdown-item py-2" href="edit_post.php?id=<?php echo $post['id']; ?>"><i class="fa-solid fa-pen me-2"></i> Chỉnh sửa bài</a></li>
+                                            <li><a class="dropdown-item text-danger py-2" href="delete_post.php?id=<?php echo $post['id']; ?>" onclick="return confirm('Bạn có chắc chắn muốn xóa bài viết này không?');"><i class="fa-solid fa-trash me-2"></i> Xóa bài viết</a></li>
+                                            <?php endif; ?>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <p class="mb-2 mt-2 text-dark" style="white-space: pre-wrap;"><?php echo format_post_content($post['content']); ?></p>
+
+                            <!-- BÀI GỐC NẾU LÀ BÀI CHIA SẺ -->
+                            <?php if (!empty($post['shared_post_id']) && !empty($post['shared_full_name'])): ?>
+                                <div class="border rounded-4 p-3 mt-2 mb-3 bg-light shadow-sm">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <img src="<?php echo !empty($post['shared_avatar_url']) ? $post['shared_avatar_url'] : 'https://ui-avatars.com/api/?name='.urlencode($post['shared_full_name']).'&background=random'; ?>" 
+                                             class="rounded-circle me-2 shadow-sm" style="width: 30px; height: 30px; object-fit: cover;">
+                                        <div>
+                                            <h6 class="mb-0 fw-bold text-dark fs-6"><?php echo htmlspecialchars($post['shared_full_name']); ?></h6>
+                                            <small class="text-muted" style="font-size: 0.75rem;"><?php echo date('d/m/Y H:i', strtotime($post['shared_created_at'])); ?></small>
+                                        </div>
+                                    </div>
+                                    <p class="mb-2 text-dark" style="white-space: pre-wrap; font-size: 0.95rem;"><?php echo format_post_content($post['shared_content']); ?></p>
+                                    
+                                    <?php if (!empty($post['shared_image_url'])): ?>
+                                        <img src="<?php echo htmlspecialchars($post['shared_image_url']); ?>" class="img-fluid rounded-3 border mb-2" alt="Post image">
+                                    <?php endif; ?>
+                                    
+                                    <?php if (!empty($post['shared_generated_image_url'])): ?>
+                                        <img src="<?php echo htmlspecialchars($post['shared_generated_image_url']); ?>" class="img-fluid rounded-3 border mb-2" alt="AI Generated Image">
+                                    <?php endif; ?>
                                 </div>
                             <?php endif; ?>
+                            
+                            <?php if (!empty($post['image_url']) && empty($post['shared_post_id'])): ?>
+                                <div class="rounded-3 overflow-hidden border mb-2">
+                                    <img src="<?php echo htmlspecialchars($post['image_url']); ?>" class="img-fluid w-100" alt="Post image">
+                                </div>
+                            <?php endif; ?>
+                            
+                            <?php if (!empty($post['generated_image_url']) && empty($post['shared_post_id'])): ?>
+                                <div class="rounded-3 overflow-hidden border mb-2">
+                                    <img src="<?php echo htmlspecialchars($post['generated_image_url']); ?>" class="img-fluid w-100" alt="AI Image">
+                                </div>
+                            <?php endif; ?>
+                            
+                            <div class="d-flex justify-content-between text-muted small mt-2 px-1">
+                                <span class="d-flex align-items-center">
+                                    <i class="fa-solid fa-thumbs-up text-primary me-2 bg-primary bg-opacity-10 p-1 rounded-circle"></i> 
+                                    <span id="like-text-<?php echo $post['id']; ?>">
+                                        <?php echo $post['like_count'] > 0 ? htmlspecialchars($like_text) : "0 lượt thích"; ?>
+                                    </span>
+                                    <span id="like-count-<?php echo $post['id']; ?>" class="d-none"><?php echo $post['like_count']; ?></span>
+                                </span>
+                                <span><span id="comment-count-<?php echo $post['id']; ?>"><?php echo $post['comment_count']; ?></span> bình luận</span>
+                            </div>
 
-                            <form class="flex-grow-1 d-flex form-comment" data-post-id="<?php echo $post['id']; ?>">
-                                <input type="text" id="comment-input-<?php echo $post['id']; ?>" class="form-control rounded-pill bg-light border-0 px-3" placeholder="Viết bình luận..." required>
-                                <button type="submit" class="btn btn-primary rounded-circle ms-2" style="width: 40px; height: 40px;"><i class="fa-solid fa-paper-plane"></i></button>
-                            </form>
+                            <hr class="my-2 opacity-25">
+                            
+                            <div class="d-flex justify-content-between px-md-2">
+                                <button class="btn btn-light fw-bold flex-grow-1 me-1 text-muted btn-like <?php echo $is_liked_class; ?>" data-post-id="<?php echo $post['id']; ?>">
+                                    <i class="<?php echo $like_icon; ?> fa-thumbs-up me-1" id="like-icon-<?php echo $post['id']; ?>"></i> Thích
+                                </button>
+                                <button class="btn btn-light fw-bold flex-grow-1 mx-1 text-muted" onclick="document.getElementById('comment-input-<?php echo $post['id']; ?>').focus();">
+                                    <i class="fa-regular fa-message me-1"></i> Bình luận
+                                </button>
+                                <!-- NÚT CHIA SẺ -->
+                                <button class="btn btn-light fw-bold flex-grow-1 ms-1 text-muted btn-share-post" data-post-id="<?php echo $post['shared_post_id'] ? $post['shared_post_id'] : $post['id']; ?>">
+                                    <i class="fa-solid fa-share me-1"></i> Chia sẻ
+                                </button>
+                            </div>
+                            
+                            <hr class="my-2 opacity-25">
+                            
+                            <div class="mt-3">
+                                <div id="comment-list-<?php echo $post['id']; ?>">
+                                    <?php
+                                    $post_id_cmt = $post['id'];
+                                    $sql_cmts = "SELECT c.*, u.full_name, u.avatar_url FROM comments c JOIN users u ON c.user_id = u.id WHERE c.post_id = $post_id_cmt ORDER BY c.created_at ASC";
+                                    $res_cmts = $conn->query($sql_cmts);
+                                    if ($res_cmts && $res_cmts->num_rows > 0) {
+                                        while($cmt = $res_cmts->fetch_assoc()) {
+                                    ?>
+                                        <div class="d-flex mb-3">
+                                            <img src="<?php echo !empty($cmt['avatar_url']) ? $cmt['avatar_url'] : 'https://ui-avatars.com/api/?name='.urlencode($cmt['full_name']).'&background=random'; ?>" 
+                                                 class="rounded-circle me-2 mt-1" style="width: 32px; height: 32px; object-fit: contain; background:#f1f5f9; flex-shrink: 0;"
+                                                 onerror="this.src='https://ui-avatars.com/api/?name=<?php echo urlencode($cmt['full_name']); ?>&background=random';">
+                                            
+                                            <div class="comment-box">
+                                                <h6 class="mb-0 fw-bold fs-6 text-dark"><?php echo htmlspecialchars($cmt['full_name']); ?></h6>
+                                                <p class="mb-0 text-dark" style="font-size: 0.95rem;"><?php echo htmlspecialchars($cmt['content']); ?></p>
+                                            </div>
+                                        </div>
+                                    <?php 
+                                        } 
+                                    } 
+                                    ?>
+                                </div>
+                                
+                                <div class="d-flex mt-2">
+                                    <img src="<?php echo !empty($_SESSION['avatar_url']) ? $_SESSION['avatar_url'] : 'https://ui-avatars.com/api/?name='.urlencode($_SESSION['full_name']).'&background=random'; ?>" 
+                                         class="rounded-circle me-2 mt-1 shadow-sm" style="width: 32px; height: 32px; object-fit: contain; background:#f1f5f9; flex-shrink: 0;"
+                                         onerror="this.src='https://ui-avatars.com/api/?name=<?php echo urlencode($_SESSION['full_name']); ?>&background=random';">
+
+                                    <form class="flex-grow-1 d-flex form-comment" data-post-id="<?php echo $post['id']; ?>">
+                                        <input type="text" id="comment-input-<?php echo $post['id']; ?>" class="form-control rounded-pill bg-light border-0 px-3" placeholder="Viết bình luận..." required>
+                                        <button type="submit" class="btn btn-primary rounded-circle ms-2" style="width: 40px; height: 40px;"><i class="fa-solid fa-paper-plane"></i></button>
+                                    </form>
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                </div>
-        <?php 
-            } 
-        } else {
-            echo '<div class="card p-5 text-center border-0 bg-transparent shadow-none mt-4">';
-            echo '<i class="fa-solid fa-camera fa-4x text-muted opacity-25 mb-3"></i>';
-            echo '<h5 class="text-muted fw-bold">Chưa có bài viết nào</h5>';
-            echo '<p class="text-muted">Chia sẻ khoảnh khắc đầu tiên của bạn với cộng đồng.</p>';
-            echo '<a href="index.php" class="btn btn-primary rounded-pill px-4 mt-2">Đăng bài ngay</a>';
-            echo '</div>';
-        }
-        ?>
+                <?php 
+                    } 
+                } else {
+                    echo '<div class="card p-5 text-center border-0 bg-transparent shadow-none mt-4">';
+                    echo '<i class="fa-solid fa-camera fa-4x text-muted opacity-25 mb-3"></i>';
+                    echo '<h5 class="text-muted fw-bold">Chưa có bài viết nào</h5>';
+                    echo '</div>';
+                }
+                ?>
+            </div>
+        </div>
     </div>
 
     <?php if ($is_own_profile): ?>
@@ -385,7 +352,6 @@ $is_user_admin = is_admin($conn, $current_user_id);
                 </div>
                 <div class="modal-body p-4">
                     <form action="process_profile.php" method="POST" enctype="multipart/form-data">
-                        
                         <div class="mb-3">
                             <label class="form-label fw-bold text-dark small">Ảnh đại diện mới</label>
                             <label class="custom-file-upload w-100">
@@ -428,11 +394,10 @@ $is_user_admin = is_admin($conn, $current_user_id);
             </div>
         </div>
     </div>
-
-    </div>
     <?php endif; ?>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <?php include 'includes/footer_scripts.php'; ?>
     <script>
         document.querySelectorAll('.btn-friend-action').forEach(btn => {
             btn.addEventListener('click', async function() {
@@ -445,26 +410,6 @@ $is_user_admin = is_admin($conn, $current_user_id);
                 if (data.status === 'success') location.reload();
             });
         });
-        const currentUserAvatar = '<?php echo isset($_SESSION['avatar_url']) ? $_SESSION['avatar_url'] : ""; ?>';
-        const currentUserInitial = '<?php echo mb_substr($_SESSION['full_name'], 0, 1, "UTF-8"); ?>';
-        const currentUserName = '<?php echo $_SESSION['full_name']; ?>';
-
-        const btnDarkMode = document.getElementById('btn-darkmode');
-        const htmlElement = document.documentElement;
-        const iconDarkMode = btnDarkMode.querySelector('i');
-
-        const currentTheme = localStorage.getItem('theme') || 'light';
-        setTheme(currentTheme);
-
-        btnDarkMode.addEventListener('click', () => {
-            setTheme(htmlElement.getAttribute('data-bs-theme') === 'light' ? 'dark' : 'light');
-        });
-
-        function setTheme(theme) {
-            htmlElement.setAttribute('data-bs-theme', theme);
-            localStorage.setItem('theme', theme);
-            iconDarkMode.className = theme === 'dark' ? 'fa-solid fa-sun text-warning' : 'fa-solid fa-moon';
-        }
 
         // PREVIEW ẢNH UPLOAD ĐẸP MẮT
         document.getElementById('avatar-input').addEventListener('change', function(e) {
@@ -491,13 +436,61 @@ $is_user_admin = is_admin($conn, $current_user_id);
             }
         });
 
+        // SCRIPT: LƯU BÀI VIẾT
+        document.querySelectorAll('.btn-save-post').forEach(btn => {
+            btn.addEventListener('click', async function(e) {
+                e.preventDefault();
+                const postId = this.dataset.postId;
+                try {
+                    const res = await fetch('api_save_post.php', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({post_id: postId})
+                    });
+                    const data = await res.json();
+                    if(data.status === 'success') {
+                        if(data.action === 'saved') {
+                            this.innerHTML = '<i class="fa-solid fa-bookmark text-primary me-2"></i> Bỏ lưu bài viết';
+                        } else {
+                            this.innerHTML = '<i class="fa-regular fa-bookmark me-2"></i> Lưu bài viết';
+                        }
+                    }
+                } catch(e) { console.error(e); }
+            });
+        });
+
+        // SCRIPT: CHIA SẺ BÀI VIẾT
+        document.querySelectorAll('.btn-share-post').forEach(btn => {
+            btn.addEventListener('click', async function() {
+                if(!confirm('Bạn có muốn chia sẻ bài viết này lên tường nhà mình không?')) return;
+                const postId = this.dataset.postId;
+                btn.disabled = true;
+                
+                try {
+                    const res = await fetch('api_share_post.php', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({post_id: postId})
+                    });
+                    const data = await res.json();
+                    if(data.status === 'success') {
+                        alert('Đã chia sẻ thành công!');
+                        location.reload(); 
+                    } else {
+                        alert(data.message);
+                        btn.disabled = false;
+                    }
+                } catch(e) { console.error(e); btn.disabled = false; }
+            });
+        });
+
+        // LIKE & COMMENT
         document.querySelectorAll('.btn-like').forEach(button => {
             button.addEventListener('click', async function() {
                 const postId = this.getAttribute('data-post-id');
                 const icon = document.getElementById('like-icon-' + postId);
                 const countSpan = document.getElementById('like-count-' + postId);
                 const textSpan = document.getElementById('like-text-' + postId);
-                
                 try {
                     const response = await fetch('api_like.php', {
                         method: 'POST',
@@ -507,23 +500,16 @@ $is_user_admin = is_admin($conn, $current_user_id);
                     const data = await response.json();
                     if(data.status === 'success') {
                         countSpan.innerText = data.likes;
-                        
-                        if(data.likes == 0) {
-                            textSpan.innerText = "0 lượt thích";
-                        } else if(data.action === 'liked') {
-                            textSpan.innerText = "Bạn và " + (data.likes - 1) + " người khác";
-                        } else {
-                            textSpan.innerText = data.likes + " lượt thích";
-                        }
+                        if(data.likes == 0) textSpan.innerText = "0 lượt thích";
+                        else if(data.action === 'liked') textSpan.innerText = "Bạn và " + (data.likes - 1) + " người khác";
+                        else textSpan.innerText = data.likes + " lượt thích";
 
                         if(data.action === 'liked') {
                             this.classList.add('liked');
-                            icon.classList.remove('fa-regular');
-                            icon.classList.add('fa-solid');
+                            icon.classList.replace('fa-regular', 'fa-solid');
                         } else {
                             this.classList.remove('liked');
-                            icon.classList.remove('fa-solid');
-                            icon.classList.add('fa-regular');
+                            icon.classList.replace('fa-solid', 'fa-regular');
                         }
                     }
                 } catch(e) { console.error(e); }
@@ -536,12 +522,10 @@ $is_user_admin = is_admin($conn, $current_user_id);
                 const postId = this.getAttribute('data-post-id');
                 const inputField = document.getElementById('comment-input-' + postId);
                 const content = inputField.value;
-
                 if (!content.trim()) return;
 
                 const submitBtn = this.querySelector('button[type="submit"]');
-                inputField.disabled = true;
-                submitBtn.disabled = true;
+                inputField.disabled = true; submitBtn.disabled = true;
 
                 try {
                     const response = await fetch('api_comment.php', {
@@ -550,38 +534,19 @@ $is_user_admin = is_admin($conn, $current_user_id);
                         body: JSON.stringify({ post_id: postId, content: content })
                     });
                     const data = await response.json();
-
                     if (data.status === 'success') {
                         const commentList = document.getElementById('comment-list-' + postId);
-                        const avatarHTML = currentUserAvatar 
-                            ? `<img src="${currentUserAvatar}" class="rounded-circle me-2 mt-1" style="width: 32px; height: 32px; object-fit: contain; background:#f1f5f9; flex-shrink: 0;">`
-                            : `<div class="rounded-circle bg-secondary text-white d-flex justify-content-center align-items-center me-2 mt-1" style="width: 32px; height: 32px; flex-shrink: 0; font-size: 0.85rem;">${currentUserInitial}</div>`;
-
-                        const newCommentHTML = `
-                            <div class="d-flex mb-3">
-                                ${avatarHTML}
-                                <div class="comment-box">
-                                    <h6 class="mb-0 fw-bold fs-6 text-dark">${data.full_name}</h6>
-                                    <p class="mb-0 text-dark" style="font-size: 0.95rem;">${data.content}</p>
-                                </div>
-                            </div>
-                        `;
+                        const myAvatarUrl = '<?php echo !empty($_SESSION["avatar_url"]) ? $_SESSION["avatar_url"] : "https://ui-avatars.com/api/?name=".urlencode($_SESSION["full_name"])."&background=random"; ?>';
+                        const avatarHTML = `<img src="${myAvatarUrl}" class="rounded-circle me-2 mt-1" style="width: 32px; height: 32px; object-fit: contain; background:#f1f5f9; flex-shrink: 0;" onerror="this.src='https://ui-avatars.com/api/?name=<?php echo urlencode($_SESSION["full_name"]); ?>&background=random';">`;
+                        const newCommentHTML = `<div class="d-flex mb-3">${avatarHTML}<div class="comment-box"><h6 class="mb-0 fw-bold fs-6 text-dark">${data.full_name}</h6><p class="mb-0 text-dark" style="font-size: 0.95rem;">${data.content}</p></div></div>`;
                         commentList.insertAdjacentHTML('beforeend', newCommentHTML);
 
                         const countSpan = document.getElementById('comment-count-' + postId);
                         if(countSpan) countSpan.innerText = parseInt(countSpan.innerText) + 1;
-                        
                         inputField.value = '';
-                    } else {
-                        alert(data.message);
-                    }
-                } catch (err) {
-                    alert("Có lỗi mạng khi đăng bình luận!");
-                } finally {
-                    inputField.disabled = false;
-                    submitBtn.disabled = false;
-                    inputField.focus();
-                }
+                    } else { alert(data.message); }
+                } catch (err) { alert("Lỗi mạng!"); } 
+                finally { inputField.disabled = false; submitBtn.disabled = false; inputField.focus(); }
             });
         });
     </script>
