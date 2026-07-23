@@ -25,23 +25,27 @@ $action = $data['action'] ?? '';
 $id = intval($data['id'] ?? 0);
 
 if ($action === 'delete_post' && $id > 0) {
-    $conn->query("DELETE FROM likes WHERE post_id = $id");
-    $conn->query("DELETE FROM comments WHERE post_id = $id");
-    $conn->query("DELETE FROM notifications WHERE post_id = $id");
-    $conn->query("DELETE FROM posts WHERE id = $id");
+    // Cập nhật tên bảng Tiếng Việt
+    $conn->query("DELETE FROM LUOT_THICH WHERE BV_Ma = $id");
+    $conn->query("DELETE FROM BINH_LUAN WHERE BV_Ma = $id");
+    $conn->query("DELETE FROM THONG_BAO WHERE BV_Ma = $id");
+    $conn->query("DELETE FROM BAI_VIET_HASHTAG WHERE BV_Ma = $id");
+    $conn->query("DELETE FROM BAI_VIET_DA_LUU WHERE BV_Ma = $id");
+    $conn->query("DELETE FROM BAI_VIET WHERE BV_Ma = $id");
+    
     echo json_encode(['status' => 'success', 'message' => 'Đã xóa bài viết']);
     exit;
 }
 
 if ($action === 'toggle_role' && $id > 0 && $id != $admin_id) {
-    $res = $conn->query("SELECT role FROM users WHERE id = $id");
+    // Đổi quyền Admin/User
+    $res = $conn->query("SELECT ND_VaiTro FROM NGUOI_DUNG WHERE ND_Ma = $id");
     if ($row = $res->fetch_assoc()) {
-        $new_role = ($row['role'] === 'admin') ? 'user' : 'admin';
-        $conn->query("UPDATE users SET role = '$new_role' WHERE id = $id");
+        $new_role = ($row['ND_VaiTro'] === 'admin') ? 'user' : 'admin';
+        $conn->query("UPDATE NGUOI_DUNG SET ND_VaiTro = '$new_role' WHERE ND_Ma = $id");
         echo json_encode(['status' => 'success', 'message' => "Đã đổi role thành $new_role"]);
         exit;
     }
 }
 
-echo json_encode(['status' => 'error', 'message' => 'Thao tác không hợp lệ']);
-?>
+echo json_encode(['status' => 'error', 'message' => 'Thao tác không hợp lệ']);?>

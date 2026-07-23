@@ -11,17 +11,20 @@ $target_id = intval($data['target_id']);
 $user_id = $_SESSION['user_id'];
 
 if ($action == 'add') {
-    $conn->query("INSERT INTO friends (sender_id, receiver_id, status) VALUES ($user_id, $target_id, 'pending')");
-    $conn->query("INSERT INTO notifications (user_id, sender_id, type) VALUES ($target_id, $user_id, 'friend_request')");
+    // Thêm lời mời kết bạn
+    $conn->query("INSERT INTO BAN_BE (ND_Ma_Gui, ND_Ma_Nhan, BB_TrangThai) VALUES ($user_id, $target_id, 'pending')");
+    $conn->query("INSERT INTO THONG_BAO (ND_Ma_Nhan, ND_Ma_Gui, TB_Loai) VALUES ($target_id, $user_id, 'friend_request')");
     echo json_encode(['status' => 'success', 'new_state' => 'pending']);
 } 
 elseif ($action == 'accept') {
-    $conn->query("UPDATE friends SET status = 'accepted' WHERE sender_id = $target_id AND receiver_id = $user_id");
-    $conn->query("INSERT INTO notifications (user_id, sender_id, type) VALUES ($target_id, $user_id, 'friend_accept')");
+    // Chấp nhận kết bạn
+    $conn->query("UPDATE BAN_BE SET BB_TrangThai = 'accepted' WHERE ND_Ma_Gui = $target_id AND ND_Ma_Nhan = $user_id");
+    $conn->query("INSERT INTO THONG_BAO (ND_Ma_Nhan, ND_Ma_Gui, TB_Loai) VALUES ($target_id, $user_id, 'friend_accept')");
     echo json_encode(['status' => 'success', 'new_state' => 'accepted']);
 } 
 elseif ($action == 'cancel' || $action == 'unfriend') {
-    $conn->query("DELETE FROM friends WHERE (sender_id = $user_id AND receiver_id = $target_id) OR (sender_id = $target_id AND receiver_id = $user_id)");
+    // Hủy kết bạn hoặc xóa lời mời
+    $conn->query("DELETE FROM BAN_BE WHERE (ND_Ma_Gui = $user_id AND ND_Ma_Nhan = $target_id) OR (ND_Ma_Gui = $target_id AND ND_Ma_Nhan = $user_id)");
     echo json_encode(['status' => 'success', 'new_state' => 'none']);
 }
 ?>

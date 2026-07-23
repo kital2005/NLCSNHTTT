@@ -31,7 +31,8 @@ if ($result === null) {
 
 $user_id = intval($_SESSION['user_id']);
 
-if (table_exists($conn, 'ai_logs')) {
+// Lưu vết vào bảng LOG_AI (Tiếng Việt)
+if (table_exists($conn, 'LOG_AI')) {
     $topic = $conn->real_escape_string($result['predicted_topic'] ?? '');
     $emotion = $conn->real_escape_string($result['predicted_emotion'] ?? '');
     $content_esc = $conn->real_escape_string(mb_substr($content, 0, 500));
@@ -39,9 +40,9 @@ if (table_exists($conn, 'ai_logs')) {
     $time_ms = intval($result['processing_time_ms'] ?? 0);
     $status = $conn->real_escape_string($result['image_status'] ?? 'success');
 
-    $conn->query("INSERT INTO ai_logs (user_id, post_content, predicted_topic, predicted_emotion, image_url, processing_time_ms, status)
-                  VALUES ($user_id, '$content_esc', '$topic', '$emotion', '$img', $time_ms, '$status')");
+    $sql_log = "INSERT INTO LOG_AI (ND_Ma, LA_NoiDung, LA_ChuDe, LA_CamXuc, LA_HinhAnh, LA_ThoiGian_ms, LA_TrangThai) 
+                VALUES ($user_id, '$content_esc', '$topic', '$emotion', '$img', $time_ms, '$status')";
+    $conn->query($sql_log);
 }
 
-echo json_encode($result);
-?>
+echo json_encode($result);?>

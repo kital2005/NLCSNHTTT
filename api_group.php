@@ -10,7 +10,6 @@ if (!isset($_SESSION['user_id']) || $_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 $user_id = $_SESSION['user_id'];
 
-// Lấy dữ liệu từ FormData (khi tạo nhóm) hoặc JSON (khi bấm nút)
 $action = isset($_POST['action']) ? $_POST['action'] : '';
 if(empty($action)) {
     $data = json_decode(file_get_contents('php://input'), true);
@@ -25,7 +24,10 @@ if ($action == 'create') {
     $privacy = isset($_POST['privacy']) ? $conn->real_escape_string($_POST['privacy']) : 'public';
     $cover_url = 'https://ui-avatars.com/api/?name='.urlencode($name).'&background=random&size=500';
 
-    if (empty($name)) { echo json_encode(['status' => 'error', 'message' => 'Tên nhóm không được trống!']); exit; }
+    if (empty($name)) { 
+        echo json_encode(['status' => 'error', 'message' => 'Tên nhóm không được trống!']); 
+        exit; 
+    }
 
     if (isset($_FILES['cover']) && $_FILES['cover']['error'] === 0) {
         $ext = strtolower(pathinfo($_FILES['cover']['name'], PATHINFO_EXTENSION));
@@ -33,44 +35,62 @@ if ($action == 'create') {
             if (!is_dir('uploads')) mkdir('uploads', 0755, true);
             $filename = "group_" . time() . "_" . rand(100,999) . "." . $ext;
             $upload_path = "uploads/" . $filename;
-            if (move_uploaded_file($_FILES['cover']['tmp_name'], $upload_path)) { $cover_url = $upload_path; }
+            if (move_uploaded_file($_FILES['cover']['tmp_name'], $upload_path)) { 
+                $cover_url = $upload_path; 
+            }
         }
     }
 
-    $conn->query("INSERT INTO `groups` (name, description, cover_url, privacy, creator_id) VALUES ('$name', '$desc', '$cover_url', '$privacy', $user_id)");
+    $sql_create = "INSERT INTO NHOM (N_Ten, N_MoTa, N_AnhBia, N_QuyenRiengTu, ND_Ma_Tao) 
+                   VALUES ('$name', '$desc', '$cover_url', '$privacy', $user_id)";
+    $conn->query($sql_create);
+    
     $group_id = $conn->insert_id;
-    $conn->query("INSERT INTO group_members (group_id, user_id, role) VALUES ($group_id, $user_id, 'admin')");
-    echo json_encode(['status' => 'success', 'group_id' => $group_id]); exit;
+    $sql_admin = "INSERT INTO THANH_VIEN_NHOM (N_Ma, ND_Ma, TVN_VaiTro) 
+                  VALUES ($group_id, $user_id, 'admin')";
+    $conn->query($sql_admin);
+    
+    echo json_encode(['status' => 'success', 'group_id' => $group_id]); 
+    exit;
 } 
 elseif ($action == 'join') {
-    // Kiểm tra nhóm là public hay private
-    $grp = $conn->query("SELECT privacy FROM `groups` WHERE id = $target_id")->fetch_assoc();
+    $grp = $conn->query("SELECT N_QuyenRiengTu as privacy, ND_Ma_Tao as creator_id FROM NHOM WHERE N_Ma = $target_id")->fetch_assoc();
     $role = ($grp['privacy'] == 'private') ? 'pending' : 'member';
     
-    $conn->query("INSERT IGNORE INTO group_members (group_id, user_id, role) VALUES ($target_id, $user_id, '$role')");
+    $sql_join = "INSERT IGNORE INTO THANH_VIEN_NHOM (N_Ma, ND_Ma, TVN_VaiTro) 
+                 VALUES ($target_id, $user_id, '$role')";
+    $conn->query($sql_join);
     
     if ($role == 'pending') {
-        echo json_encode(['status' => 'pending', 'message' => 'Đã gửi yêu cầu tham gia. Vui lòng chờ Chủ nhóm phê duyệt!']);
+        $admin_id = $grp['creator_id'];
+        $sql_notif = "INSERT INTO THONG_BAO (ND_Ma_Nhan, ND_Ma_Gui, TB_Loai, BV_Ma) 
+                      VALUES ($admin_id, $user_id, 'group_join', $target_id)";
+        $conn->query($sql_notif);
+        echo json_encode(['status' => 'pending', 'message' => 'Đã gửi yêu cầu tham gia. Vui lòng chờ Chủ nhóm duyệt!']);
     } else {
         echo json_encode(['status' => 'success']);
     }
     exit;
 } 
 elseif ($action == 'leave') {
-    $check_admin = $conn->query("SELECT role FROM group_members WHERE group_id = $target_id AND user_id = $user_id");
-    if ($check_admin->num_rows > 0 && $check_admin->fetch_assoc()['role'] == 'admin') {
-        echo json_encode(['status' => 'error', 'message' => 'Quản trị viên không thể rời nhóm!']); exit;
-    }
-    $conn->query("DELETE FROM group_members WHERE group_id = $target_id AND user_id = $user_id");
-    echo json_encode(['status' => 'success']); exit;
+    $sql_leave = "DELETE FROM THANH_VIEN_NHOM 
+                  WHERE N_Ma = $target_id AND ND_Ma = $user_id AND TVN_VaiTro != 'admin'";
+    $conn->query($sql_leave);
+    echo json_encode(['status' => 'success']); 
+    exit;
 }
-// Chức năng duyệt/từ chối thành viên của Chủ nhóm
 elseif ($action == 'approve_member') {
-    $conn->query("UPDATE group_members SET role = 'member' WHERE group_id = $target_id AND user_id = $member_id");
-    echo json_encode(['status' => 'success']); exit;
+    $sql_approve = "UPDATE THANH_VIEN_NHOM SET TVN_VaiTro = 'member' 
+                    WHERE N_Ma = $target_id AND ND_Ma = $member_id";
+    $conn->query($sql_approve);
+    echo json_encode(['status' => 'success']); 
+    exit;
 }
 elseif ($action == 'reject_member') {
-    $conn->query("DELETE FROM group_members WHERE group_id = $target_id AND user_id = $member_id AND role = 'pending'");
-    echo json_encode(['status' => 'success']); exit;
+    $sql_reject = "DELETE FROM THANH_VIEN_NHOM 
+                   WHERE N_Ma = $target_id AND ND_Ma = $member_id AND TVN_VaiTro = 'pending'";
+    $conn->query($sql_reject);
+    echo json_encode(['status' => 'success']); 
+    exit;
 }
 ?>

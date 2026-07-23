@@ -6,7 +6,9 @@ if (!isset($_SESSION['user_id'])) { header("Location: login.php"); exit(); }
 $current_user_id = $_SESSION['user_id'];
 $active_menu = 'groups';
 
-$notif_count_query = $conn->query("SELECT COUNT(*) as total FROM notifications WHERE user_id = $current_user_id AND is_read = 0");
+// Đã cập nhật bảng THONG_BAO
+$sql_notif = "SELECT COUNT(*) as total FROM THONG_BAO WHERE ND_Ma_Nhan = $current_user_id AND TB_DaDoc = 0";
+$notif_count_query = $conn->query($sql_notif);
 $unread_notif_count = $notif_count_query->fetch_assoc()['total'];
 $is_user_admin = is_admin($conn, $current_user_id);
 ?>
@@ -56,7 +58,14 @@ $is_user_admin = is_admin($conn, $current_user_id);
                 <h6 class="section-title"><i class="fa-solid fa-layer-group text-primary me-2"></i> Nhóm của bạn</h6>
                 <div class="row mb-5">
                     <?php
-                    $sql = "SELECT g.*, (SELECT COUNT(*) FROM group_members WHERE group_id = g.id AND role != 'pending') as mem_cnt FROM `groups` g JOIN group_members gm ON g.id = gm.group_id WHERE gm.user_id = $current_user_id AND gm.role != 'pending'";
+                    // CẬP NHẬT: Dùng bảng NHOM và THANH_VIEN_NHOM
+                    $sql = "SELECT g.N_Ma as id, g.N_Ten as name, g.N_MoTa as description, 
+                                   g.N_AnhBia as cover_url, g.N_QuyenRiengTu as privacy, 
+                                   (SELECT COUNT(*) FROM THANH_VIEN_NHOM WHERE N_Ma = g.N_Ma AND TVN_VaiTro != 'pending') as mem_cnt 
+                            FROM NHOM g 
+                            JOIN THANH_VIEN_NHOM gm ON g.N_Ma = gm.N_Ma 
+                            WHERE gm.ND_Ma = $current_user_id AND gm.TVN_VaiTro != 'pending'";
+                    
                     $res = $conn->query($sql);
                     if ($res && $res->num_rows > 0) {
                         while($grp = $res->fetch_assoc()) {
@@ -83,8 +92,13 @@ $is_user_admin = is_admin($conn, $current_user_id);
                 <h6 class="section-title"><i class="fa-solid fa-compass text-success me-2"></i> Khám phá Nhóm mới</h6>
                 <div class="row mb-5">
                     <?php
-                    $sql_discover = "SELECT g.*, (SELECT COUNT(*) FROM group_members WHERE group_id = g.id AND role != 'pending') as mem_cnt 
-                                     FROM `groups` g WHERE g.id NOT IN (SELECT group_id FROM group_members WHERE user_id = $current_user_id) LIMIT 9";
+                    // CẬP NHẬT: Gợi ý các nhóm chưa tham gia
+                    $sql_discover = "SELECT g.N_Ma as id, g.N_Ten as name, g.N_MoTa as description, 
+                                            g.N_AnhBia as cover_url, g.N_QuyenRiengTu as privacy, 
+                                            (SELECT COUNT(*) FROM THANH_VIEN_NHOM WHERE N_Ma = g.N_Ma AND TVN_VaiTro != 'pending') as mem_cnt 
+                                     FROM NHOM g 
+                                     WHERE g.N_Ma NOT IN (SELECT N_Ma FROM THANH_VIEN_NHOM WHERE ND_Ma = $current_user_id) LIMIT 9";
+                    
                     $res_discover = $conn->query($sql_discover);
                     if ($res_discover && $res_discover->num_rows > 0) {
                         while($sug = $res_discover->fetch_assoc()) {
@@ -113,7 +127,7 @@ $is_user_admin = is_admin($conn, $current_user_id);
         </div>
     </div>
 
-    <!-- MODAL TẠO NHÓM MỚI ĐÃ THÊM CHỌN PUBLIC/PRIVATE -->
+    <!-- MODAL TẠO NHÓM MỚI -->
     <div class="modal fade" id="createGroupModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content border-0 shadow-lg" style="border-radius: 20px;">

@@ -12,7 +12,8 @@ $post_id = intval($_POST['post_id']);
 $content = $conn->real_escape_string(trim($_POST['content']));
 
 if (!empty($content)) {
-    $query = "INSERT INTO comments (post_id, user_id, content) VALUES ($post_id, $user_id, '$content')";
+    // Lưu vào CSDL Tiếng Việt
+    $query = "INSERT INTO BINH_LUAN (BV_Ma, ND_Ma, BL_NoiDung) VALUES ($post_id, $user_id, '$content')";
     $conn->query($query);
 }
 

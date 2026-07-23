@@ -8,8 +8,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $full_name = trim($_POST['full_name']);
     $password = $_POST['password'];
 
-    // Kiểm tra xem username đã tồn tại chưa
-    $check_query = "SELECT id FROM users WHERE username = '$username'";
+    // Kiểm tra xem username đã tồn tại chưa trong bảng NGUOI_DUNG
+    $check_query = "SELECT ND_Ma FROM NGUOI_DUNG WHERE ND_TaiKhoan = '$username'";
     $result = $conn->query($check_query);
 
     if ($result->num_rows > 0) {
@@ -18,8 +18,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         // Mã hóa mật khẩu trước khi lưu để bảo mật hệ thống
         $hashed_password = password_hash($password, PASSWORD_DEFAULT);
         
-        // Chèn người dùng mới vào database
-        $insert_query = "INSERT INTO users (username, full_name, password) VALUES ('$username', '$full_name', '$hashed_password')";
+        // Chèn người dùng mới vào database Tiếng Việt
+        $insert_query = "INSERT INTO NGUOI_DUNG (ND_TaiKhoan, ND_HoTen, ND_MatKhau) 
+                         VALUES ('$username', '$full_name', '$hashed_password')";
         
         if ($conn->query($insert_query) === TRUE) {
             $success_message = "Đăng ký thành công! Đang chuyển hướng sang trang đăng nhập...";

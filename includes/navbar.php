@@ -6,7 +6,10 @@ if (!isset($current_user_id)) {
 }
 
 $uid = intval($current_user_id);
-$notif_count_query = $conn->query("SELECT COUNT(*) as total FROM notifications WHERE user_id = $uid AND is_read = 0");
+
+// VIỆT HÓA: Đếm thông báo từ bảng THONG_BAO
+$sql_notif_count = "SELECT COUNT(*) as total FROM THONG_BAO WHERE ND_Ma_Nhan = $uid AND TB_DaDoc = 0";
+$notif_count_query = $conn->query($sql_notif_count);
 $unread_notif_count = $notif_count_query ? (int)$notif_count_query->fetch_assoc()['total'] : 0;
 
 $is_user_admin = is_admin($conn, $uid);
@@ -52,7 +55,14 @@ $nav_back_link = $nav_back_link ?? null;
                     </li>
                     <div id="notif-dropdown-list">
                     <?php
-                    $sql_notif = "SELECT n.*, u.full_name, u.avatar_url FROM notifications n JOIN users u ON n.sender_id = u.id WHERE n.user_id = $uid ORDER BY n.created_at DESC LIMIT 8";
+                    // VIỆT HÓA: Kéo dữ liệu Dropdown từ bảng THONG_BAO và NGUOI_DUNG
+                    $sql_notif = "SELECT n.TB_Ma as id, n.TB_Loai as type, n.BV_Ma as post_id, 
+                                         n.TB_DaDoc as is_read, n.TB_NgayTao as created_at, 
+                                         u.ND_HoTen as full_name, u.ND_AnhDaiDien as avatar_url 
+                                  FROM THONG_BAO n 
+                                  JOIN NGUOI_DUNG u ON n.ND_Ma_Gui = u.ND_Ma 
+                                  WHERE n.ND_Ma_Nhan = $uid 
+                                  ORDER BY n.TB_NgayTao DESC LIMIT 8";
                     $res_notif = $conn->query($sql_notif);
                     if ($res_notif && $res_notif->num_rows > 0) {
                         while ($notif = $res_notif->fetch_assoc()) {
@@ -97,4 +107,4 @@ $nav_back_link = $nav_back_link ?? null;
         </div>
     </div>
 </nav>
-<div id="toast-container" class="toast-notif"></div>
+<div id="toast-container" class="toast-notif"> </div>

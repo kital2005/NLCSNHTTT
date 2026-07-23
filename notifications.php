@@ -15,23 +15,33 @@ $filter = isset($_GET['filter']) ? $_GET['filter'] : 'all';
 $valid_filters = ['all', 'like', 'comment', 'friend_request', 'friend_accept', 'ai_complete'];
 if (!in_array($filter, $valid_filters)) $filter = 'all';
 
-$where = "n.user_id = $current_user_id";
+// VIỆT HÓA: Đổi user_id thành ND_Ma_Nhan và type thành TB_Loai
+$where = "n.ND_Ma_Nhan = $current_user_id";
 if ($filter !== 'all') {
     $f = $conn->real_escape_string($filter);
-    $where .= " AND n.type = '$f'";
+    $where .= " AND n.TB_Loai = '$f'";
 }
 
 $page = max(1, intval($_GET['page'] ?? 1));
 $per_page = 20;
 $offset = ($page - 1) * $per_page;
 
-$total = (int)$conn->query("SELECT COUNT(*) as c FROM notifications n WHERE $where")->fetch_assoc()['c'];
+$sql_count = "SELECT COUNT(*) as c FROM THONG_BAO n WHERE $where";
+$total = (int)$conn->query($sql_count)->fetch_assoc()['c'];
 $total_pages = max(1, ceil($total / $per_page));
 
-$sql = "SELECT n.*, u.full_name, u.avatar_url FROM notifications n JOIN users u ON n.sender_id = u.id WHERE $where ORDER BY n.created_at DESC LIMIT $per_page OFFSET $offset";
+// VIỆT HÓA: Dùng AS để lấy đúng key JSON/Array
+$sql = "SELECT n.TB_Ma as id, n.TB_Loai as type, n.BV_Ma as post_id, 
+               n.TB_DaDoc as is_read, n.TB_NgayTao as created_at, 
+               u.ND_HoTen as full_name, u.ND_AnhDaiDien as avatar_url 
+        FROM THONG_BAO n 
+        JOIN NGUOI_DUNG u ON n.ND_Ma_Gui = u.ND_Ma 
+        WHERE $where 
+        ORDER BY n.TB_NgayTao DESC LIMIT $per_page OFFSET $offset";
 $res = $conn->query($sql);
 
-$notif_count_query = $conn->query("SELECT COUNT(*) as total FROM notifications WHERE user_id = $current_user_id AND is_read = 0");
+$sql_unread = "SELECT COUNT(*) as total FROM THONG_BAO WHERE ND_Ma_Nhan = $current_user_id AND TB_DaDoc = 0";
+$notif_count_query = $conn->query($sql_unread);
 $unread_notif_count = $notif_count_query->fetch_assoc()['total'];
 ?>
 <!DOCTYPE html>
@@ -150,5 +160,4 @@ document.getElementById('btn-mark-all').addEventListener('click', async function
     if (badge) badge.classList.add('d-none');
 });
 </script>
-</body>
-</html>
+</body></html>

@@ -10,7 +10,8 @@ if (!isset($_SESSION['user_id'])) {
 $current_user_id = $_SESSION['user_id'];
 $active_menu = 'friends';
 
-$notif_count_query = $conn->query("SELECT COUNT(*) as total FROM notifications WHERE user_id = $current_user_id AND is_read = 0");
+// Đã đổi qua bảng THONG_BAO
+$notif_count_query = $conn->query("SELECT COUNT(*) as total FROM THONG_BAO WHERE ND_Ma_Nhan = $current_user_id AND TB_DaDoc = 0");
 $unread_notif_count = $notif_count_query->fetch_assoc()['total'];
 $is_user_admin = is_admin($conn, $current_user_id);
 ?>
@@ -48,7 +49,11 @@ $is_user_admin = is_admin($conn, $current_user_id);
                     <h6 class="fw-bold section-title"><i class="fa-solid fa-bell text-primary me-2"></i> Lời mời kết bạn đang chờ</h6>
                     <div class="row mb-5">
                         <?php
-                        $sql_requests = "SELECT u.* FROM users u JOIN friends f ON u.id = f.sender_id WHERE f.receiver_id = $current_user_id AND f.status = 'pending'";
+                        // Câu query 1: Lấy danh sách chờ kết bạn
+                        $sql_requests = "SELECT u.ND_Ma as id, u.ND_TaiKhoan as username, u.ND_HoTen as full_name, u.ND_AnhDaiDien as avatar_url 
+                                         FROM NGUOI_DUNG u 
+                                         JOIN BAN_BE f ON u.ND_Ma = f.ND_Ma_Gui 
+                                         WHERE f.ND_Ma_Nhan = $current_user_id AND f.BB_TrangThai = 'pending'";
                         $res_requests = $conn->query($sql_requests);
                         
                         if ($res_requests && $res_requests->num_rows > 0) {
@@ -83,10 +88,13 @@ $is_user_admin = is_admin($conn, $current_user_id);
                     <h6 class="fw-bold section-title"><i class="fa-solid fa-wand-magic-sparkles text-success me-2"></i> Có thể bạn biết</h6>
                     <div class="row mb-5">
                         <?php
-                        $sql_suggest = "SELECT * FROM users WHERE id != $current_user_id AND id NOT IN (
-                                            SELECT sender_id FROM friends WHERE receiver_id = $current_user_id
+                        // Câu query 2: Gợi ý kết bạn
+                        $sql_suggest = "SELECT ND_Ma as id, ND_TaiKhoan as username, ND_HoTen as full_name, ND_AnhDaiDien as avatar_url 
+                                        FROM NGUOI_DUNG 
+                                        WHERE ND_Ma != $current_user_id AND ND_Ma NOT IN (
+                                            SELECT ND_Ma_Gui FROM BAN_BE WHERE ND_Ma_Nhan = $current_user_id
                                             UNION
-                                            SELECT receiver_id FROM friends WHERE sender_id = $current_user_id
+                                            SELECT ND_Ma_Nhan FROM BAN_BE WHERE ND_Ma_Gui = $current_user_id
                                         ) LIMIT 6";
                         $res_suggest = $conn->query($sql_suggest);
                         
@@ -123,9 +131,12 @@ $is_user_admin = is_admin($conn, $current_user_id);
                     <h6 class="fw-bold section-title"><i class="fa-solid fa-address-book text-info me-2"></i> Danh bạ của bạn</h6>
                     <div class="row">
                         <?php
-                        $sql_friends = "SELECT u.* FROM users u JOIN friends f ON (u.id = f.sender_id OR u.id = f.receiver_id) 
-                                        WHERE (f.sender_id = $current_user_id OR f.receiver_id = $current_user_id) 
-                                        AND u.id != $current_user_id AND f.status = 'accepted'";
+                        // Câu query 3: Danh sách bạn bè hiện tại
+                        $sql_friends = "SELECT u.ND_Ma as id, u.ND_TaiKhoan as username, u.ND_HoTen as full_name, u.ND_AnhDaiDien as avatar_url 
+                                        FROM NGUOI_DUNG u 
+                                        JOIN BAN_BE f ON (u.ND_Ma = f.ND_Ma_Gui OR u.ND_Ma = f.ND_Ma_Nhan) 
+                                        WHERE (f.ND_Ma_Gui = $current_user_id OR f.ND_Ma_Nhan = $current_user_id) 
+                                        AND u.ND_Ma != $current_user_id AND f.BB_TrangThai = 'accepted'";
                         $res_friends = $conn->query($sql_friends);
                         
                         if ($res_friends && $res_friends->num_rows > 0) {

@@ -10,8 +10,10 @@ if (!isset($_SESSION['user_id']) || !isset($_GET['id'])) {
 $post_id = intval($_GET['id']);
 $user_id = $_SESSION['user_id'];
 
-// Lấy thông tin bài viết (chỉ lấy nếu nó thuộc về người đang đăng nhập)
-$query = "SELECT * FROM posts WHERE id = $post_id AND user_id = $user_id";
+// Lấy thông tin bài viết từ bảng BAI_VIET và dùng AS để giữ nguyên biến HTML
+$query = "SELECT BV_Ma as id, BV_NoiDung as content, BV_HinhAnhAI as generated_image_url, BV_QuyenRiengTu as privacy 
+          FROM BAI_VIET 
+          WHERE BV_Ma = $post_id AND ND_Ma = $user_id";
 $result = $conn->query($query);
 
 if ($result->num_rows == 0) {

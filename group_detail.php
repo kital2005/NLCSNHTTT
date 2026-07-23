@@ -8,19 +8,28 @@ $current_user_id = $_SESSION['user_id'];
 $group_id = intval($_GET['id']);
 $active_menu = 'groups';
 
-// Lấy thông tin nhóm
-$group_query = $conn->query("SELECT g.*, (SELECT COUNT(*) FROM group_members WHERE group_id = g.id AND role != 'pending') as member_count FROM `groups` g WHERE id = $group_id");
+// 1. VIỆT HÓA: Lấy thông tin nhóm từ bảng NHOM và THANH_VIEN_NHOM
+$sql_group = "SELECT g.N_Ma as id, g.N_Ten as name, g.N_MoTa as description, 
+                     g.N_AnhBia as cover_url, g.N_QuyenRiengTu as privacy, 
+                     g.N_DuyetBai as require_approval, g.ND_Ma_Tao as creator_id, 
+                     (SELECT COUNT(*) FROM THANH_VIEN_NHOM WHERE N_Ma = g.N_Ma AND TVN_VaiTro != 'pending') as member_count 
+              FROM NHOM g WHERE g.N_Ma = $group_id";
+$group_query = $conn->query($sql_group);
+
 if ($group_query->num_rows == 0) die("Nhóm không tồn tại!");
 $group = $group_query->fetch_assoc();
 
 $role = 'none';
-$role_query = $conn->query("SELECT role FROM group_members WHERE group_id = $group_id AND user_id = $current_user_id");
+// 2. VIỆT HÓA: Kiểm tra vai trò
+$sql_role = "SELECT TVN_VaiTro as role FROM THANH_VIEN_NHOM WHERE N_Ma = $group_id AND ND_Ma = $current_user_id";
+$role_query = $conn->query($sql_role);
 if ($role_query->num_rows > 0) $role = $role_query->fetch_assoc()['role'];
 
-// Kiểm tra quyền Chủ Group
 $is_group_creator = ($group['creator_id'] == $current_user_id);
 
-$notif_count_query = $conn->query("SELECT COUNT(*) as total FROM notifications WHERE user_id = $current_user_id AND is_read = 0");
+// 3. VIỆT HÓA: Thông báo
+$sql_notif = "SELECT COUNT(*) as total FROM THONG_BAO WHERE ND_Ma_Nhan = $current_user_id AND TB_DaDoc = 0";
+$notif_count_query = $conn->query($sql_notif);
 $unread_notif_count = $notif_count_query->fetch_assoc()['total'];
 $is_user_admin = is_admin($conn, $current_user_id);
 
@@ -28,21 +37,21 @@ $is_user_admin = is_admin($conn, $current_user_id);
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['update_settings']) && $is_group_creator) {
     $req_app = isset($_POST['require_approval']) ? 1 : 0;
     $priv = $conn->real_escape_string($_POST['privacy']);
-    $conn->query("UPDATE `groups` SET require_approval = $req_app, privacy = '$priv' WHERE id = $group_id");
+    $conn->query("UPDATE NHOM SET N_DuyetBai = $req_app, N_QuyenRiengTu = '$priv' WHERE N_Ma = $group_id");
     header("Location: group_detail.php?id=$group_id"); exit();
 }
 
 // Xử lý Duyệt/Xóa bài viết
 if (isset($_GET['action']) && isset($_GET['post_id']) && $is_group_creator) {
     $p_id = intval($_GET['post_id']);
-    $post_info = $conn->query("SELECT user_id FROM posts WHERE id = $p_id")->fetch_assoc();
+    $post_info = $conn->query("SELECT ND_Ma as user_id FROM BAI_VIET WHERE BV_Ma = $p_id")->fetch_assoc();
     
     if ($_GET['action'] == 'approve') {
-        $conn->query("UPDATE posts SET status = 'approved' WHERE id = $p_id");
-        // Bắn thông báo cho người đăng
-        $conn->query("INSERT INTO notifications (user_id, sender_id, type, post_id) VALUES ({$post_info['user_id']}, $current_user_id, 'group_approved', $p_id)");
+        $conn->query("UPDATE BAI_VIET SET BV_TrangThai = 'approved' WHERE BV_Ma = $p_id");
+        $conn->query("INSERT INTO THONG_BAO (ND_Ma_Nhan, ND_Ma_Gui, TB_Loai, BV_Ma) 
+                      VALUES ({$post_info['user_id']}, $current_user_id, 'group_approved', $p_id)");
     } elseif ($_GET['action'] == 'reject') {
-        $conn->query("DELETE FROM posts WHERE id = $p_id AND status = 'pending'");
+        $conn->query("DELETE FROM BAI_VIET WHERE BV_Ma = $p_id AND BV_TrangThai = 'pending'");
     }
     header("Location: group_detail.php?id=$group_id"); exit();
 }
@@ -126,7 +135,6 @@ if (isset($_GET['action']) && isset($_GET['post_id']) && $is_group_creator) {
                         <textarea id="post-content" class="form-control border-0 status-input p-3" name="content" rows="2" placeholder="Bạn muốn chia sẻ điều gì?" required></textarea>
                     </div>
 
-                    <!-- AI Preview Box -->
                     <div id="ai-preview-box" class="d-none mb-3 p-2 border rounded-3 bg-light position-relative">
                         <button type="button" id="btn-remove-ai" class="btn btn-sm btn-danger position-absolute top-0 end-0 m-2 rounded-circle"><i class="fa-solid fa-xmark"></i></button>
                         <div id="ai-loading" class="text-center py-4 text-muted"><div class="spinner-border text-primary mb-2"></div><p class="small">AI đang vẽ ảnh...</p></div>
@@ -139,7 +147,6 @@ if (isset($_GET['action']) && isset($_GET['post_id']) && $is_group_creator) {
                         <input type="hidden" name="ai_image_url" id="hidden_ai_image_url">
                     </div>
 
-                    <!-- Image Preview Box -->
                     <div id="post-image-preview" class="d-none mb-3 position-relative">
                         <button type="button" id="btn-remove-image" class="btn btn-sm btn-danger position-absolute top-0 end-0 m-2 rounded-circle"><i class="fa-solid fa-xmark"></i></button>
                         <img id="post-image-preview-img" src="" class="img-fluid rounded-3 w-100">
@@ -158,11 +165,50 @@ if (isset($_GET['action']) && isset($_GET['post_id']) && $is_group_creator) {
             </div>
             <?php endif; ?>
 
-            <!-- KHU VỰC BÀI CHỜ DUYỆT (ĐÃ FIX HIỂN THỊ ĐẦY ĐỦ ẢNH TỪ AI HOẶC UPLOAD) -->
+            <!-- CHỨC NĂNG DUYỆT THÀNH VIÊN -->
+            <?php if($is_group_creator && $group['privacy'] == 'private'): ?>
+            <div id="pending-members" class="mb-4">
+                <?php
+                // 4. VIỆT HÓA: Thành viên chờ duyệt
+                $sql_pend_mem = "SELECT gm.ND_Ma as user_id, u.ND_HoTen as full_name, u.ND_AnhDaiDien as avatar_url, gm.TVN_NgayThamGia as joined_at 
+                                 FROM THANH_VIEN_NHOM gm 
+                                 JOIN NGUOI_DUNG u ON gm.ND_Ma = u.ND_Ma 
+                                 WHERE gm.N_Ma = $group_id AND gm.TVN_VaiTro = 'pending'";
+                $res_pend_mem = $conn->query($sql_pend_mem);
+                
+                if($res_pend_mem && $res_pend_mem->num_rows > 0) {
+                    echo '<h5 class="fw-bold text-info mb-3"><i class="fa-solid fa-user-shield me-2"></i> Thành viên chờ duyệt</h5>';
+                    echo '<div class="card p-3 shadow-sm border border-info mb-4">';
+                    while($pm = $res_pend_mem->fetch_assoc()) {
+                ?>
+                    <div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2" id="req-<?php echo $pm['user_id']; ?>">
+                        <div class="d-flex align-items-center">
+                            <img src="<?php echo avatar_url($pm['full_name'], $pm['avatar_url']); ?>" class="rounded-circle me-3" width="45" height="45" style="object-fit:cover;">
+                            <div>
+                                <h6 class="mb-0 fw-bold"><?php echo htmlspecialchars($pm['full_name']); ?></h6>
+                                <small class="text-muted">Gửi yêu cầu lúc: <?php echo date('H:i d/m', strtotime($pm['joined_at'])); ?></small>
+                            </div>
+                        </div>
+                        <div>
+                            <button class="btn btn-success btn-sm rounded-pill px-3 fw-bold btn-handle-member" data-action="approve_member" data-member="<?php echo $pm['user_id']; ?>">Duyệt</button>
+                            <button class="btn btn-light btn-sm rounded-pill px-3 fw-bold border btn-handle-member" data-action="reject_member" data-member="<?php echo $pm['user_id']; ?>">Từ chối</button>
+                        </div>
+                    </div>
+                <?php } echo '</div>'; } ?>
+            </div>
+            <?php endif; ?>
+
+            <!-- KHU VỰC BÀI CHỜ DUYỆT -->
             <?php if($is_group_creator): ?>
             <div id="pending-posts" class="mb-4">
                 <?php
-                $sql_pending = "SELECT p.*, u.full_name, u.avatar_url FROM posts p JOIN users u ON p.user_id = u.id WHERE p.group_id = $group_id AND p.status = 'pending' ORDER BY p.created_at ASC";
+                // 5. VIỆT HÓA: Bài chờ duyệt
+                $sql_pending = "SELECT p.BV_Ma as id, p.BV_NoiDung as content, p.BV_HinhAnh as image_url, 
+                                       p.BV_HinhAnhAI as generated_image_url, p.BV_NgayDang as created_at, 
+                                       u.ND_HoTen as full_name, u.ND_AnhDaiDien as avatar_url 
+                                FROM BAI_VIET p JOIN NGUOI_DUNG u ON p.ND_Ma = u.ND_Ma 
+                                WHERE p.N_Ma = $group_id AND p.BV_TrangThai = 'pending' 
+                                ORDER BY p.BV_NgayDang ASC";
                 $res_pending = $conn->query($sql_pending);
                 if($res_pending && $res_pending->num_rows > 0) {
                     echo '<h5 class="fw-bold text-warning mb-3"><i class="fa-solid fa-clock me-2"></i> Bài viết chờ duyệt</h5>';
@@ -179,7 +225,6 @@ if (isset($_GET['action']) && isset($_GET['post_id']) && $is_group_creator) {
                         
                         <p class="text-dark fs-5" style="white-space: pre-wrap;"><?php echo format_post_content($pend['content']); ?></p>
                         
-                        <!-- CHÍNH XÁC: ĐÃ HIỂN THỊ ẢNH -->
                         <?php if (!empty($pend['image_url'])): ?>
                             <img src="<?php echo htmlspecialchars($pend['image_url']); ?>" class="img-fluid rounded-3 border mb-3 w-100">
                         <?php endif; ?>
@@ -196,22 +241,29 @@ if (isset($_GET['action']) && isset($_GET['post_id']) && $is_group_creator) {
             </div>
             <?php endif; ?>
 
-            <!-- HIỂN THỊ BÀI VIẾT NHÓM NHƯ TRƯỚC -->
+            <!-- HIỂN THỊ BÀI VIẾT NHÓM -->
             <h5 id="feed" class="fw-bold text-dark mb-3"><i class="fa-solid fa-layer-group me-2 text-primary"></i> Thảo luận nhóm</h5>
             <?php
-            // Nếu là nhóm Private và chưa phải thành viên -> Chặn xem
             if ($role == 'none' && $group['privacy'] == 'private' && !$is_group_creator) {
                 echo '<div class="card p-5 text-center bg-light border-0"><i class="fa-solid fa-lock fa-3x text-muted opacity-50 mb-3"></i><h5 class="text-muted fw-bold">Đây là nhóm Riêng tư</h5><p class="text-muted mb-0">Bạn cần tham gia nhóm để xem các bài viết thảo luận.</p></div>';
             } else {
-                // ... Bê y xì vòng lặp $res_feed xuất các thẻ bài viết (post card) của nhóm ...
-                $sql_feed = "SELECT p.*, u.full_name, u.avatar_url, (SELECT COUNT(*) FROM likes WHERE post_id = p.id) as like_count, (SELECT COUNT(*) FROM likes WHERE post_id = p.id AND user_id = $current_user_id) as user_liked, (SELECT COUNT(*) FROM comments WHERE post_id = p.id) as comment_count FROM posts p JOIN users u ON p.user_id = u.id WHERE p.group_id = $group_id AND p.status = 'approved' ORDER BY p.created_at DESC";
+                // 6. VIỆT HÓA: Tường bài viết
+                $sql_feed = "SELECT p.BV_Ma as id, p.ND_Ma as user_id, p.BV_NoiDung as content, p.BV_HinhAnh as image_url, 
+                                    p.BV_HinhAnhAI as generated_image_url, p.BV_NgayDang as created_at, 
+                                    u.ND_HoTen as full_name, u.ND_AnhDaiDien as avatar_url, 
+                                    (SELECT COUNT(*) FROM LUOT_THICH WHERE BV_Ma = p.BV_Ma) as like_count, 
+                                    (SELECT COUNT(*) FROM LUOT_THICH WHERE BV_Ma = p.BV_Ma AND ND_Ma = $current_user_id) as user_liked, 
+                                    (SELECT COUNT(*) FROM BINH_LUAN WHERE BV_Ma = p.BV_Ma) as comment_count 
+                             FROM BAI_VIET p JOIN NGUOI_DUNG u ON p.ND_Ma = u.ND_Ma 
+                             WHERE p.N_Ma = $group_id AND p.BV_TrangThai = 'approved' 
+                             ORDER BY p.BV_NgayDang DESC";
+                
                 $res_feed = $conn->query($sql_feed);
                 if ($res_feed && $res_feed->num_rows > 0) {
                     while($post = $res_feed->fetch_assoc()) {
                         $is_liked_class = ($post['user_liked'] > 0) ? 'liked' : '';
                         $like_icon = ($post['user_liked'] > 0) ? 'fa-solid' : 'fa-regular';
             ?>
-                    <!-- RENDER POST GIỐNG INDEX.PHP -->
                     <div class="card p-3 shadow-sm border-0 mb-4" id="post-<?php echo $post['id']; ?>" style="border-radius: 16px;">
                         <div class="d-flex justify-content-between align-items-start mb-2">
                             <div class="d-flex align-items-center">
@@ -250,7 +302,12 @@ if (isset($_GET['action']) && isset($_GET['post_id']) && $is_group_creator) {
                         <div class="mt-3">
                             <div id="comment-list-<?php echo $post['id']; ?>">
                                 <?php
-                                $res_cmts = $conn->query("SELECT c.*, u.full_name, u.avatar_url FROM comments c JOIN users u ON c.user_id = u.id WHERE c.post_id = {$post['id']} ORDER BY c.created_at ASC");
+                                // 7. VIỆT HÓA: Load bình luận
+                                $sql_cmts = "SELECT c.BL_Ma as id, c.BL_NoiDung as content, c.BL_NgayBinhLuan as created_at, 
+                                                    u.ND_HoTen as full_name, u.ND_AnhDaiDien as avatar_url 
+                                             FROM BINH_LUAN c JOIN NGUOI_DUNG u ON c.ND_Ma = u.ND_Ma 
+                                             WHERE c.BV_Ma = {$post['id']} ORDER BY c.BL_NgayBinhLuan ASC";
+                                $res_cmts = $conn->query($sql_cmts);
                                 if ($res_cmts && $res_cmts->num_rows > 0) {
                                     while($cmt = $res_cmts->fetch_assoc()) {
                                         echo '<div class="d-flex mb-3"><img src="'.avatar_url($cmt['full_name'], $cmt['avatar_url']).'" class="rounded-circle me-2 mt-1" style="width:32px; height:32px; object-fit:cover;"><div class="comment-box"><h6 class="mb-0 fw-bold fs-6 text-dark">'.htmlspecialchars($cmt['full_name']).'</h6><p class="mb-0 text-dark" style="font-size: 0.95rem;">'.htmlspecialchars($cmt['content']).'</p></div></div>';
@@ -272,7 +329,7 @@ if (isset($_GET['action']) && isset($_GET['post_id']) && $is_group_creator) {
     </div>
 </div>
 
-<!-- MODAL CÀI ĐẶT NHÓM (Dành cho Chủ Group) -->
+<!-- MODAL CÀI ĐẶT NHÓM -->
 <?php if($is_group_creator): ?>
 <div class="modal fade" id="settingsModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
@@ -310,7 +367,7 @@ if (isset($_GET['action']) && isset($_GET['post_id']) && $is_group_creator) {
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <?php include 'includes/footer_scripts.php'; ?>
 <script>
-    // JS Cho Form ảnh và AI (Tương tự Index)
+    // JS Cho Form ảnh và AI
     const btnUploadImage = document.getElementById('btn-upload-image');
     if(btnUploadImage) {
         btnUploadImage.addEventListener('click', () => document.getElementById('post-image-input').click());
@@ -355,6 +412,17 @@ if (isset($_GET['action']) && isset($_GET['post_id']) && $is_group_creator) {
         });
     });
 
+    document.querySelectorAll('.btn-handle-member').forEach(btn => {
+        btn.addEventListener('click', async function() {
+            const action = this.dataset.action; const memberId = this.dataset.member; const groupId = <?php echo $group_id; ?>;
+            try {
+                const res = await fetch('api_group.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: action, group_id: groupId, member_id: memberId }) });
+                const data = await res.json();
+                if(data.status === 'success') { document.getElementById('req-' + memberId).remove(); }
+            } catch(e) { console.error(e); }
+        });
+    });
+
     document.querySelectorAll('.btn-like').forEach(b => {
         b.addEventListener('click', async function() {
             const postId = this.getAttribute('data-post-id'); const icon = document.getElementById('like-icon-' + postId); const countSpan = document.getElementById('like-count-' + postId);
@@ -363,8 +431,7 @@ if (isset($_GET['action']) && isset($_GET['post_id']) && $is_group_creator) {
                 const data = await res.json();
                 if(data.status === 'success') {
                     countSpan.innerText = data.likes;
-                    if(data.action === 'liked') { this.classList.add('liked'); icon.classList.replace('fa-regular', 'fa-solid'); }
-                    else { this.classList.remove('liked'); icon.classList.replace('fa-solid', 'fa-regular'); }
+                    if(data.action === 'liked') { this.classList.add('liked'); icon.classList.replace('fa-regular', 'fa-solid'); } else { this.classList.remove('liked'); icon.classList.replace('fa-solid', 'fa-regular'); }
                 }
             } catch(e) {}
         });
@@ -379,7 +446,7 @@ if (isset($_GET['action']) && isset($_GET['post_id']) && $is_group_creator) {
                 const res = await fetch('api_comment.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ post_id: postId, content: content }) });
                 const data = await res.json();
                 if (data.status === 'success') location.reload();
-            } catch (err) {}
+            } catch (err) {} 
         });
     });
 </script>

@@ -13,8 +13,8 @@ $content = $conn->real_escape_string(trim($_POST['content']));
 $privacy = $conn->real_escape_string($_POST['privacy']);
 
 if (!empty($content)) {
-    // Đảm bảo chỉ người tạo bài viết mới được update
-    $query = "UPDATE posts SET content = '$content', privacy = '$privacy' WHERE id = $post_id AND user_id = $user_id";
+    // Đảm bảo chỉ người tạo bài viết mới được update (Bảng BAI_VIET)
+    $query = "UPDATE BAI_VIET SET BV_NoiDung = '$content', BV_QuyenRiengTu = '$privacy' WHERE BV_Ma = $post_id AND ND_Ma = $user_id";
     $conn->query($query);
 }
 

@@ -1,7 +1,7 @@
 <?php
 // Thông tin cấu hình mặc định của XAMPP
 $host = 'localhost';
-$dbname = 'social_ai_db'; // Tên database bạn đã tạo trong phpMyAdmin
+$dbname = 'social_ai_db_2'; // Tên database bạn đã tạo trong phpMyAdmin
 $username = 'root';       // Tài khoản mặc định
 $password = '';           // Mật khẩu mặc định để trống
 

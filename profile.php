@@ -12,23 +12,38 @@ $current_user_id = intval($_SESSION['user_id']);
 $profile_user_id = isset($_GET['user_id']) ? intval($_GET['user_id']) : $current_user_id;
 $is_own_profile = ($profile_user_id === $current_user_id);
 
-$query = "SELECT * FROM users WHERE id = $profile_user_id";
-$result = $conn->query($query);
+// VIỆT HÓA: Kéo thông tin User
+$sql_user = "SELECT ND_Ma as id, ND_TaiKhoan as username, ND_HoTen as full_name, 
+                    ND_TieuSu as bio, ND_AnhDaiDien as avatar_url, ND_AnhBia as cover_url, 
+                    ND_NgayTao as created_at 
+             FROM NGUOI_DUNG WHERE ND_Ma = $profile_user_id";
+$result = $conn->query($sql_user);
+
 if (!$result || $result->num_rows === 0) {
     header("Location: profile.php");
     exit();
 }
 $user = $result->fetch_assoc();
 
-$post_count_query = $conn->query("SELECT COUNT(*) as total FROM posts WHERE user_id = $profile_user_id");
+// Đếm Bài viết
+$post_count_query = $conn->query("SELECT COUNT(*) as total FROM BAI_VIET WHERE ND_Ma = $profile_user_id");
 $post_count = $post_count_query->fetch_assoc()['total'];
 
-$total_likes_query = $conn->query("SELECT COUNT(*) as total FROM likes JOIN posts ON likes.post_id = posts.id WHERE posts.user_id = $profile_user_id");
+// Đếm Tổng lượt thích
+$sql_likes = "SELECT COUNT(*) as total FROM LUOT_THICH JOIN BAI_VIET ON LUOT_THICH.BV_Ma = BAI_VIET.BV_Ma 
+              WHERE BAI_VIET.ND_Ma = $profile_user_id";
+$total_likes_query = $conn->query($sql_likes);
 $total_likes = $total_likes_query->fetch_assoc()['total'];
 
+// Trạng thái kết bạn
 $friend_status = 'none';
 if (!$is_own_profile) {
-    $fs = $conn->query("SELECT * FROM friends WHERE (sender_id=$current_user_id AND receiver_id=$profile_user_id) OR (sender_id=$profile_user_id AND receiver_id=$current_user_id) LIMIT 1");
+    $sql_fs = "SELECT ND_Ma_Gui as sender_id, ND_Ma_Nhan as receiver_id, BB_TrangThai as status 
+               FROM BAN_BE 
+               WHERE (ND_Ma_Gui=$current_user_id AND ND_Ma_Nhan=$profile_user_id) 
+                  OR (ND_Ma_Gui=$profile_user_id AND ND_Ma_Nhan=$current_user_id) LIMIT 1";
+    $fs = $conn->query($sql_fs);
+    
     if ($fs && $fs->num_rows > 0) {
         $fr = $fs->fetch_assoc();
         if ($fr['status'] === 'accepted') $friend_status = 'accepted';
@@ -37,17 +52,18 @@ if (!$is_own_profile) {
     }
 }
 
-$posts_where = "posts.user_id = $profile_user_id";
+// Phân quyền xem bài viết
+$posts_where = "posts.ND_Ma = $profile_user_id AND posts.BV_TrangThai = 'approved'";
 if (!$is_own_profile) {
-    $posts_where .= " AND (posts.privacy = 'public'";
+    $posts_where .= " AND (posts.BV_QuyenRiengTu = 'public'";
     if ($friend_status === 'accepted') {
-        $posts_where .= " OR posts.privacy = 'friends'";
+        $posts_where .= " OR posts.BV_QuyenRiengTu = 'friends'";
     }
     $posts_where .= ")";
 }
 
 $active_menu = 'profile';
-$notif_count_query = $conn->query("SELECT COUNT(*) as total FROM notifications WHERE user_id = $current_user_id AND is_read = 0");
+$notif_count_query = $conn->query("SELECT COUNT(*) as total FROM THONG_BAO WHERE ND_Ma_Nhan = $current_user_id AND TB_DaDoc = 0");
 $unread_notif_count = $notif_count_query->fetch_assoc()['total'];
 $is_user_admin = is_admin($conn, $current_user_id);
 ?>
@@ -139,20 +155,28 @@ $is_user_admin = is_admin($conn, $current_user_id);
                 <h5 class="fw-bold mb-3 text-dark px-2"><?php echo $is_own_profile ? 'Bài viết của bạn' : 'Bài viết'; ?></h5>
 
                 <?php
-                // Cập nhật truy vấn để hiển thị trạng thái đã Lưu và thông tin Chia sẻ
-                $sql_posts = "SELECT posts.*, users.full_name, users.avatar_url,
-                                (SELECT COUNT(*) FROM likes WHERE post_id = posts.id) as like_count,
-                                (SELECT COUNT(*) FROM likes WHERE post_id = posts.id AND user_id = $current_user_id) as user_liked,
-                                (SELECT COUNT(*) FROM comments WHERE post_id = posts.id) as comment_count,
-                                (SELECT COUNT(*) FROM saved_posts WHERE post_id = posts.id AND user_id = $current_user_id) as is_saved,
-                                sp.content as shared_content, sp.image_url as shared_image_url, sp.generated_image_url as shared_generated_image_url, sp.ai_topic as shared_ai_topic, sp.created_at as shared_created_at,
-                                su.full_name as shared_full_name, su.avatar_url as shared_avatar_url
-                              FROM posts 
-                              JOIN users ON posts.user_id = users.id 
-                              LEFT JOIN posts sp ON posts.shared_post_id = sp.id
-                              LEFT JOIN users su ON sp.user_id = su.id
+                // VIỆT HÓA BẢNG TIN TƯỜNG NHÀ
+                $sql_posts = "SELECT posts.BV_Ma as id, posts.ND_Ma as user_id, posts.BV_NoiDung as content, 
+                                     posts.BV_QuyenRiengTu as privacy, posts.BV_HinhAnh as image_url, 
+                                     posts.BV_HinhAnhAI as generated_image_url, posts.BV_NgayDang as created_at, 
+                                     posts.BV_MaChiaSe as shared_post_id, posts.N_Ma as group_id, 
+                                     posts.BV_ChuDeAI as ai_topic, 
+                                     users.ND_HoTen as full_name, users.ND_AnhDaiDien as avatar_url,
+                                     (SELECT COUNT(*) FROM LUOT_THICH WHERE BV_Ma = posts.BV_Ma) as like_count,
+                                     (SELECT COUNT(*) FROM LUOT_THICH WHERE BV_Ma = posts.BV_Ma AND ND_Ma = $current_user_id) as user_liked,
+                                     (SELECT COUNT(*) FROM BINH_LUAN WHERE BV_Ma = posts.BV_Ma) as comment_count,
+                                     (SELECT COUNT(*) FROM BAI_VIET_DA_LUU WHERE BV_Ma = posts.BV_Ma AND ND_Ma = $current_user_id) as is_saved,
+                                     sp.BV_NoiDung as shared_content, sp.BV_HinhAnh as shared_image_url, 
+                                     sp.BV_HinhAnhAI as shared_generated_image_url, sp.BV_ChuDeAI as shared_ai_topic, 
+                                     sp.BV_NgayDang as shared_created_at,
+                                     su.ND_HoTen as shared_full_name, su.ND_AnhDaiDien as shared_avatar_url
+                              FROM BAI_VIET posts 
+                              JOIN NGUOI_DUNG users ON posts.ND_Ma = users.ND_Ma 
+                              LEFT JOIN BAI_VIET sp ON posts.BV_MaChiaSe = sp.BV_Ma
+                              LEFT JOIN NGUOI_DUNG su ON sp.ND_Ma = su.ND_Ma
                               WHERE $posts_where
-                              ORDER BY posts.created_at DESC";
+                              ORDER BY posts.BV_NgayDang DESC";
+                              
                 $result_posts = $conn->query($sql_posts);
 
                 if ($result_posts && $result_posts->num_rows > 0) {
@@ -164,7 +188,9 @@ $is_user_admin = is_admin($conn, $current_user_id);
                         $is_liked_class = ($post['user_liked'] > 0) ? 'liked' : '';
                         $like_icon = ($post['user_liked'] > 0) ? 'fa-solid' : 'fa-regular';
                         
-                        $likers_sql = "SELECT u.full_name FROM likes l JOIN users u ON l.user_id = u.id WHERE l.post_id = {$post['id']} ORDER BY l.created_at DESC LIMIT 2";
+                        $likers_sql = "SELECT u.ND_HoTen as full_name FROM LUOT_THICH l 
+                                       JOIN NGUOI_DUNG u ON l.ND_Ma = u.ND_Ma 
+                                       WHERE l.BV_Ma = {$post['id']} ORDER BY l.LT_NgayThich DESC LIMIT 2";
                         $likers_res = $conn->query($likers_sql);
                         $liker_names = [];
                         while($liker = $likers_res->fetch_assoc()) {
@@ -296,7 +322,11 @@ $is_user_admin = is_admin($conn, $current_user_id);
                                 <div id="comment-list-<?php echo $post['id']; ?>">
                                     <?php
                                     $post_id_cmt = $post['id'];
-                                    $sql_cmts = "SELECT c.*, u.full_name, u.avatar_url FROM comments c JOIN users u ON c.user_id = u.id WHERE c.post_id = $post_id_cmt ORDER BY c.created_at ASC";
+                                    // VIỆT HÓA BÌNH LUẬN TRONG TƯỜNG
+                                    $sql_cmts = "SELECT c.BL_Ma as id, c.BL_NoiDung as content, c.BL_NgayBinhLuan as created_at, 
+                                                        u.ND_HoTen as full_name, u.ND_AnhDaiDien as avatar_url 
+                                                 FROM BINH_LUAN c JOIN NGUOI_DUNG u ON c.ND_Ma = u.ND_Ma 
+                                                 WHERE c.BV_Ma = $post_id_cmt ORDER BY c.BL_NgayBinhLuan ASC";
                                     $res_cmts = $conn->query($sql_cmts);
                                     if ($res_cmts && $res_cmts->num_rows > 0) {
                                         while($cmt = $res_cmts->fetch_assoc()) {

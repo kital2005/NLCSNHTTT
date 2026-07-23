@@ -9,26 +9,40 @@ $data = json_decode(file_get_contents('php://input'), true);
 $post_id = intval($data['post_id']);
 $user_id = $_SESSION['user_id'];
 
-// Lấy thông tin chủ bài viết
-$post_query = $conn->query("SELECT user_id FROM posts WHERE id = $post_id");
+// Lấy thông tin chủ bài viết từ bảng BAI_VIET
+$post_query = $conn->query("SELECT ND_Ma as user_id FROM BAI_VIET WHERE BV_Ma = $post_id");
 $post_owner = $post_query->fetch_assoc()['user_id'];
 
-$check = $conn->query("SELECT id FROM likes WHERE post_id = $post_id AND user_id = $user_id");
+// Kiểm tra xem đã like chưa từ bảng LUOT_THICH
+$sql_check = "SELECT LT_Ma FROM LUOT_THICH WHERE BV_Ma = $post_id AND ND_Ma = $user_id";
+$check = $conn->query($sql_check);
 
 if ($check->num_rows > 0) {
-    $conn->query("DELETE FROM likes WHERE post_id = $post_id AND user_id = $user_id");
+    // Unlike
+    $conn->query("DELETE FROM LUOT_THICH WHERE BV_Ma = $post_id AND ND_Ma = $user_id");
+    
     // Xóa luôn thông báo nếu unlike
-    $conn->query("DELETE FROM notifications WHERE user_id = $post_owner AND sender_id = $user_id AND type = 'like' AND post_id = $post_id");
+    $sql_del_notif = "DELETE FROM THONG_BAO 
+                      WHERE ND_Ma_Nhan = $post_owner AND ND_Ma_Gui = $user_id 
+                      AND TB_Loai = 'like' AND BV_Ma = $post_id";
+    $conn->query($sql_del_notif);
+    
     $action = 'unliked';
 } else {
-    $conn->query("INSERT INTO likes (post_id, user_id) VALUES ($post_id, $user_id)");
-    // Bắn thông báo (nếu không phải tự like bài mình)
+    // Like
+    $conn->query("INSERT INTO LUOT_THICH (BV_Ma, ND_Ma) VALUES ($post_id, $user_id)");
+    
+    // Bắn thông báo
     if ($post_owner != $user_id) {
-        $conn->query("INSERT INTO notifications (user_id, sender_id, type, post_id) VALUES ($post_owner, $user_id, 'like', $post_id)");
+        $sql_notif = "INSERT INTO THONG_BAO (ND_Ma_Nhan, ND_Ma_Gui, TB_Loai, BV_Ma) 
+                      VALUES ($post_owner, $user_id, 'like', $post_id)";
+        $conn->query($sql_notif);
     }
     $action = 'liked';
 }
 
-$count = $conn->query("SELECT COUNT(*) as total FROM likes WHERE post_id = $post_id")->fetch_assoc()['total'];
+$count_query = $conn->query("SELECT COUNT(*) as total FROM LUOT_THICH WHERE BV_Ma = $post_id");
+$count = $count_query->fetch_assoc()['total'];
+
 echo json_encode(['status' => 'success', 'action' => $action, 'likes' => $count]);
 ?>

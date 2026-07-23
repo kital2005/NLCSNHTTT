@@ -16,15 +16,24 @@ if (!is_admin($conn, $current_user_id)) {
 
 $active_menu = 'admin';
 
+// CẬP NHẬT TRUY VẤN THEO CSDL TIẾNG VIỆT
 $stats = [
-    'users' => (int)$conn->query("SELECT COUNT(*) as c FROM users")->fetch_assoc()['c'],
-    'posts' => (int)$conn->query("SELECT COUNT(*) as c FROM posts")->fetch_assoc()['c'],
-    'comments' => (int)$conn->query("SELECT COUNT(*) as c FROM comments")->fetch_assoc()['c'],
-    'ai_logs' => table_exists($conn, 'ai_logs') ? (int)$conn->query("SELECT COUNT(*) as c FROM ai_logs")->fetch_assoc()['c'] : 0,
+    'users' => (int)$conn->query("SELECT COUNT(*) as c FROM NGUOI_DUNG")->fetch_assoc()['c'],
+    'posts' => (int)$conn->query("SELECT COUNT(*) as c FROM BAI_VIET")->fetch_assoc()['c'],
+    'comments' => (int)$conn->query("SELECT COUNT(*) as c FROM BINH_LUAN")->fetch_assoc()['c'],
+    'ai_logs' => table_exists($conn, 'LOG_AI') ? (int)$conn->query("SELECT COUNT(*) as c FROM LOG_AI")->fetch_assoc()['c'] : 0,
 ];
 
-$users_res = $conn->query("SELECT u.*, (SELECT COUNT(*) FROM posts WHERE user_id=u.id) as post_count FROM users u ORDER BY u.created_at DESC LIMIT 50");
-$posts_res = $conn->query("SELECT p.*, u.full_name FROM posts p JOIN users u ON p.user_id=u.id ORDER BY p.created_at DESC LIMIT 30");
+// Đã bẻ ngắn câu SQL cho dễ copy
+$sql_users = "SELECT u.*, 
+              (SELECT COUNT(*) FROM BAI_VIET WHERE ND_Ma = u.ND_Ma) as post_count 
+              FROM NGUOI_DUNG u ORDER BY u.ND_NgayTao DESC LIMIT 50";
+$users_res = $conn->query($sql_users);
+
+$sql_posts = "SELECT p.*, u.ND_HoTen as full_name 
+              FROM BAI_VIET p JOIN NGUOI_DUNG u ON p.ND_Ma = u.ND_Ma 
+              ORDER BY p.BV_NgayDang DESC LIMIT 30";
+$posts_res = $conn->query($sql_posts);
 ?>
 <!DOCTYPE html>
 <html lang="vi" data-bs-theme="light">
@@ -40,7 +49,8 @@ $posts_res = $conn->query("SELECT p.*, u.full_name FROM posts p JOIN users u ON 
 <body>
 
 <?php
-$notif_count_query = $conn->query("SELECT COUNT(*) as total FROM notifications WHERE user_id = $current_user_id AND is_read = 0");
+// Cập nhật bảng Thông Báo
+$notif_count_query = $conn->query("SELECT COUNT(*) as total FROM THONG_BAO WHERE ND_Ma_Nhan = $current_user_id AND TB_DaDoc = 0");
 $unread_notif_count = $notif_count_query->fetch_assoc()['total'];
 $is_user_admin = true;
 include 'includes/navbar.php';
@@ -73,14 +83,14 @@ include 'includes/navbar.php';
                             <tbody>
                             <?php while ($u = $users_res->fetch_assoc()): ?>
                                 <tr>
-                                    <td><?php echo $u['id']; ?></td>
-                                    <td><?php echo htmlspecialchars($u['full_name']); ?></td>
-                                    <td><?php echo htmlspecialchars($u['username']); ?></td>
+                                    <td><?php echo $u['ND_Ma']; ?></td>
+                                    <td><?php echo htmlspecialchars($u['ND_HoTen']); ?></td>
+                                    <td><?php echo htmlspecialchars($u['ND_TaiKhoan']); ?></td>
                                     <td><?php echo $u['post_count']; ?></td>
-                                    <td><span class="badge bg-<?php echo ($u['role'] ?? 'user') === 'admin' ? 'danger' : 'secondary'; ?>"><?php echo $u['role'] ?? 'user'; ?></span></td>
+                                    <td><span class="badge bg-<?php echo ($u['ND_VaiTro'] ?? 'user') === 'admin' ? 'danger' : 'secondary'; ?>"><?php echo $u['ND_VaiTro'] ?? 'user'; ?></span></td>
                                     <td>
-                                        <?php if ($u['id'] != $current_user_id): ?>
-                                        <button class="btn btn-sm btn-outline-danger btn-admin-action" data-action="toggle_role" data-id="<?php echo $u['id']; ?>">Đổi role</button>
+                                        <?php if ($u['ND_Ma'] != $current_user_id): ?>
+                                        <button class="btn btn-sm btn-outline-danger btn-admin-action" data-action="toggle_role" data-id="<?php echo $u['ND_Ma']; ?>">Đổi role</button>
                                         <?php endif; ?>
                                     </td>
                                 </tr>
@@ -96,12 +106,14 @@ include 'includes/navbar.php';
                             <tbody>
                             <?php while ($p = $posts_res->fetch_assoc()): ?>
                                 <tr>
-                                    <td><?php echo $p['id']; ?></td>
+                                    <td><?php echo $p['BV_Ma']; ?></td>
                                     <td><?php echo htmlspecialchars($p['full_name']); ?></td>
-                                    <td class="text-truncate" style="max-width:200px"><?php echo htmlspecialchars($p['content']); ?></td>
-                                    <td><?php echo $p['privacy']; ?></td>
+                                    <td class="text-truncate" style="max-width:200px">
+                                        <?php echo htmlspecialchars($p['BV_NoiDung']); ?>
+                                    </td>
+                                    <td><?php echo $p['BV_QuyenRiengTu']; ?></td>
                                     <td>
-                                        <button class="btn btn-sm btn-outline-danger btn-admin-action" data-action="delete_post" data-id="<?php echo $p['id']; ?>"><i class="fa-solid fa-trash"></i></button>
+                                        <button class="btn btn-sm btn-outline-danger btn-admin-action" data-action="delete_post" data-id="<?php echo $p['BV_Ma']; ?>"><i class="fa-solid fa-trash"></i></button>
                                     </td>
                                 </tr>
                             <?php endwhile; ?>
@@ -133,5 +145,4 @@ document.querySelectorAll('.btn-admin-action').forEach(btn => {
     });
 });
 </script>
-</body>
-</html>
+</body> </html>

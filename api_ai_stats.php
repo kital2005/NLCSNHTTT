@@ -26,7 +26,9 @@ if (table_exists($conn, 'ai_logs')) {
     }
 }
 
-$stats['total_ai_posts'] = (int)$conn->query("SELECT COUNT(*) as c FROM posts WHERE generated_image_url IS NOT NULL AND generated_image_url != ''")->fetch_assoc()['c'];
+// Cập nhật CSDL Tiếng Việt: Đếm số lượng ảnh AI
+$sql_count_ai = "SELECT COUNT(*) as c FROM BAI_VIET WHERE BV_HinhAnhAI IS NOT NULL AND BV_HinhAnhAI != ''";
+$stats['total_ai_posts'] = (int)$conn->query($sql_count_ai)->fetch_assoc()['c'];
 
 $model_info = null;
 if (file_exists('model_info.json')) {
@@ -38,19 +40,31 @@ $emotion_chart = [];
 $recent_logs = [];
 
 if (table_exists($conn, 'ai_logs')) {
-    $topic_res = $conn->query("SELECT predicted_topic, COUNT(*) as cnt FROM ai_logs WHERE predicted_topic IS NOT NULL AND predicted_topic != '' GROUP BY predicted_topic ORDER BY cnt DESC LIMIT 8");
+    $sql_topic = "SELECT predicted_topic, COUNT(*) as cnt FROM ai_logs " . 
+                 "WHERE predicted_topic IS NOT NULL AND predicted_topic != '' " . 
+                 "GROUP BY predicted_topic ORDER BY cnt DESC LIMIT 8";
+    $topic_res = $conn->query($sql_topic);
     if ($topic_res) {
         while ($row = $topic_res->fetch_assoc()) {
             $topic_chart[] = ['label' => $row['predicted_topic'], 'count' => (int)$row['cnt']];
         }
     }
-    $emotion_res = $conn->query("SELECT predicted_emotion, COUNT(*) as cnt FROM ai_logs WHERE predicted_emotion IS NOT NULL AND predicted_emotion != '' GROUP BY predicted_emotion ORDER BY cnt DESC LIMIT 8");
+
+    $sql_emotion = "SELECT predicted_emotion, COUNT(*) as cnt FROM ai_logs " . 
+                   "WHERE predicted_emotion IS NOT NULL AND predicted_emotion != '' " . 
+                   "GROUP BY predicted_emotion ORDER BY cnt DESC LIMIT 8";
+    $emotion_res = $conn->query($sql_emotion);
     if ($emotion_res) {
         while ($row = $emotion_res->fetch_assoc()) {
             $emotion_chart[] = ['label' => $row['predicted_emotion'], 'count' => (int)$row['cnt']];
         }
     }
-    $logs_res = $conn->query("SELECT l.*, u.full_name FROM ai_logs l LEFT JOIN users u ON l.user_id = u.id ORDER BY l.created_at DESC LIMIT 15");
+
+    // Cập nhật Join với bảng NGUOI_DUNG Tiếng Việt
+    $sql_logs = "SELECT l.*, u.ND_HoTen as full_name FROM ai_logs l " . 
+                "LEFT JOIN NGUOI_DUNG u ON l.user_id = u.ND_Ma " . 
+                "ORDER BY l.created_at DESC LIMIT 15";
+    $logs_res = $conn->query($sql_logs);
     if ($logs_res) {
         while ($row = $logs_res->fetch_assoc()) {
             $recent_logs[] = $row;
@@ -69,7 +83,13 @@ if (table_exists($conn, 'ai_training_history')) {
 }
 
 $recent_ai_images = [];
-$img_res = $conn->query("SELECT id, content, generated_image_url, ai_topic, created_at FROM posts WHERE generated_image_url IS NOT NULL AND generated_image_url != '' ORDER BY created_at DESC LIMIT 12");
+// MẸO: Dùng AS để giữ nguyên key JSON, giúp Frontend Javascript không bị lỗi
+$sql_img = "SELECT BV_Ma as id, BV_NoiDung as content, BV_HinhAnhAI as generated_image_url, " . 
+           "BV_ChuDeAI as ai_topic, BV_NgayDang as created_at FROM BAI_VIET " . 
+           "WHERE BV_HinhAnhAI IS NOT NULL AND BV_HinhAnhAI != '' " . 
+           "ORDER BY BV_NgayDang DESC LIMIT 12";
+$img_res = $conn->query($sql_img);
+
 if ($img_res) {
     while ($row = $img_res->fetch_assoc()) {
         $recent_ai_images[] = $row;
@@ -97,5 +117,4 @@ echo json_encode([
     'dataset_info' => $dataset_info,
     'has_confusion_matrix' => file_exists('confusion_matrix.png'),
     'has_model' => file_exists('social_ai_model.pkl')
-]);
-?>
+]);?>

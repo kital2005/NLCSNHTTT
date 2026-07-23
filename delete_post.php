@@ -10,8 +10,8 @@ if (!isset($_SESSION['user_id']) || !isset($_GET['id'])) {
 $post_id = intval($_GET['id']);
 $user_id = $_SESSION['user_id'];
 
-// Bảo mật: Chỉ cho phép xóa nếu bài viết đó thuộc về user đang đăng nhập
-$query = "DELETE FROM posts WHERE id = $post_id AND user_id = $user_id";
+// Bảo mật: Chỉ cho phép xóa nếu bài viết đó thuộc về user đang đăng nhập (Bảng BAI_VIET)
+$query = "DELETE FROM BAI_VIET WHERE BV_Ma = $post_id AND ND_Ma = $user_id";
 $conn->query($query);
 
 header("Location: index.php");

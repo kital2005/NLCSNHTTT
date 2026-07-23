@@ -13,7 +13,7 @@ $notif_id = intval($data['id'] ?? 0);
 $user_id = intval($_SESSION['user_id']);
 
 if ($notif_id > 0) {
-    $conn->query("UPDATE notifications SET is_read = 1 WHERE id = $notif_id AND user_id = $user_id");
+    // Đã chuyển sang bảng THONG_BAO
+    $conn->query("UPDATE THONG_BAO SET TB_DaDoc = 1 WHERE TB_Ma = $notif_id AND ND_Ma_Nhan = $user_id");
     echo json_encode(['status' => 'success']);
-}
-?>
+}?>

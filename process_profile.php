@@ -12,14 +12,14 @@ $full_name = $conn->real_escape_string(trim($_POST['full_name']));
 $bio = $conn->real_escape_string(trim($_POST['bio']));
 $new_password = $_POST['new_password'];
 
-// Cập nhật Tên và Tiểu sử
-$conn->query("UPDATE users SET full_name = '$full_name', bio = '$bio' WHERE id = $user_id");
+// Cập nhật Tên và Tiểu sử (Bảng NGUOI_DUNG)
+$conn->query("UPDATE NGUOI_DUNG SET ND_HoTen = '$full_name', ND_TieuSu = '$bio' WHERE ND_Ma = $user_id");
 $_SESSION['full_name'] = $full_name;
 
 // Cập nhật Mật khẩu nếu có nhập
 if (!empty($new_password)) {
     $hashed_password = password_hash($new_password, PASSWORD_DEFAULT);
-    $conn->query("UPDATE users SET password = '$hashed_password' WHERE id = $user_id");
+    $conn->query("UPDATE NGUOI_DUNG SET ND_MatKhau = '$hashed_password' WHERE ND_Ma = $user_id");
 }
 
 $allowed_extensions = ['jpg', 'jpeg', 'png', 'gif'];
@@ -31,7 +31,7 @@ if (isset($_FILES['avatar']) && $_FILES['avatar']['error'] === 0) {
         $new_filename = "avatar_" . $user_id . "_" . time() . "." . $ext;
         $upload_path = "uploads/" . $new_filename;
         if (move_uploaded_file($_FILES['avatar']['tmp_name'], $upload_path)) {
-            $conn->query("UPDATE users SET avatar_url = '$upload_path' WHERE id = $user_id");
+            $conn->query("UPDATE NGUOI_DUNG SET ND_AnhDaiDien = '$upload_path' WHERE ND_Ma = $user_id");
             $_SESSION['avatar_url'] = $upload_path;
         }
     }
@@ -44,7 +44,7 @@ if (isset($_FILES['cover']) && $_FILES['cover']['error'] === 0) {
         $new_filename = "cover_" . $user_id . "_" . time() . "." . $ext;
         $upload_path = "uploads/" . $new_filename;
         if (move_uploaded_file($_FILES['cover']['tmp_name'], $upload_path)) {
-            $conn->query("UPDATE users SET cover_url = '$upload_path' WHERE id = $user_id");
+            $conn->query("UPDATE NGUOI_DUNG SET ND_AnhBia = '$upload_path' WHERE ND_Ma = $user_id");
         }
     }
 }

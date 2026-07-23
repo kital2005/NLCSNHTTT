@@ -21,10 +21,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
     if (empty($content)) { header("Location: " . $_SERVER['HTTP_REFERER']); exit(); }
 
-    // XỬ LÝ NHÓM: Kiểm tra Cài đặt phê duyệt
+    // XỬ LÝ NHÓM: Kiểm tra Cài đặt phê duyệt (Bảng NHOM, THANH_VIEN_NHOM)
     if ($group_id !== "NULL") {
-        $grp_info = $conn->query("SELECT creator_id, require_approval FROM `groups` WHERE id = $group_id")->fetch_assoc();
-        $check_role = $conn->query("SELECT role FROM group_members WHERE group_id = $group_id AND user_id = $user_id");
+        $grp_info = $conn->query("SELECT ND_Ma_Tao as creator_id, N_DuyetBai as require_approval FROM NHOM WHERE N_Ma = $group_id")->fetch_assoc();
+        $check_role = $conn->query("SELECT TVN_VaiTro as role FROM THANH_VIEN_NHOM WHERE N_Ma = $group_id AND ND_Ma = $user_id");
         if ($check_role->num_rows > 0) {
             $role = $check_role->fetch_assoc()['role'];
             // Nếu là thành viên VÀ nhóm yêu cầu duyệt
@@ -48,8 +48,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         }
     }
 
-    // LƯU DB
-    $query = "INSERT INTO posts (user_id, group_id, content, privacy, status, ai_topic, ai_sentiment, image_url, generated_image_url)
+    // LƯU DB (Bảng BAI_VIET)
+    $query = "INSERT INTO BAI_VIET (ND_Ma, N_Ma, BV_NoiDung, BV_QuyenRiengTu, BV_TrangThai, BV_ChuDeAI, BV_CamXucAI, BV_HinhAnh, BV_HinhAnhAI)
               VALUES ($user_id, $group_id, '$content', '$privacy', '$status', '$ai_topic', '$ai_sentiment', " .
               ($image_url ? "'$image_url'" : "NULL") . ", " .
               ($generated_image_url ? "'$generated_image_url'" : "NULL") . ")";
@@ -57,21 +57,21 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     if ($conn->query($query)) {
         $post_id = $conn->insert_id;
         
-        // Hashtag
+        // Hashtag (Bảng HASHTAG, BAI_VIET_HASHTAG)
         preg_match_all('/#(\w+)/u', $_POST['content'], $matches);
         foreach (array_unique($matches[1]) as $tag) {
             $tag = $conn->real_escape_string($tag);
-            $conn->query("INSERT IGNORE INTO hashtags (tag_name) VALUES ('$tag')");
-            $res = $conn->query("SELECT id FROM hashtags WHERE tag_name = '$tag'");
+            $conn->query("INSERT IGNORE INTO HASHTAG (HT_Ten) VALUES ('$tag')");
+            $res = $conn->query("SELECT HT_Ma as id FROM HASHTAG WHERE HT_Ten = '$tag'");
             if ($row = $res->fetch_assoc()) {
-                $conn->query("INSERT IGNORE INTO post_hashtags (post_id, hashtag_id) VALUES ($post_id, {$row['id']})");
+                $conn->query("INSERT IGNORE INTO BAI_VIET_HASHTAG (BV_Ma, HT_Ma) VALUES ($post_id, {$row['id']})");
             }
         }
 
-        // BẮN THÔNG BÁO CHO CHỦ NHÓM
+        // BẮN THÔNG BÁO CHO CHỦ NHÓM (Bảng THONG_BAO)
         if ($status === 'pending') {
             $admin_id = $grp_info['creator_id'];
-            $conn->query("INSERT INTO notifications (user_id, sender_id, type, post_id) VALUES ($admin_id, $user_id, 'group_pending', $post_id)");
+            $conn->query("INSERT INTO THONG_BAO (ND_Ma_Nhan, ND_Ma_Gui, TB_Loai, BV_Ma) VALUES ($admin_id, $user_id, 'group_pending', $post_id)");
             echo "<script>alert('Bài viết của bạn đã được gửi chờ Quản trị viên duyệt!'); window.location.href='group_detail.php?id=$group_id';</script>";
             exit();
         }

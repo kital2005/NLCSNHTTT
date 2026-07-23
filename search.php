@@ -17,7 +17,7 @@ $safe_keyword = $conn->real_escape_string($keyword);
 $safe_hashtag = $conn->real_escape_string($hashtag);
 
 // Đếm số thông báo chưa đọc
-$notif_count_query = $conn->query("SELECT COUNT(*) as total FROM notifications WHERE user_id = $current_user_id AND is_read = 0");
+$notif_count_query = $conn->query("SELECT COUNT(*) as total FROM THONG_BAO WHERE ND_Ma_Nhan = $current_user_id AND TB_DaDoc = 0");
 $unread_notif_count = $notif_count_query->fetch_assoc()['total'];
 ?>
 <!DOCTYPE html>
@@ -112,7 +112,10 @@ $unread_notif_count = $notif_count_query->fetch_assoc()['total'];
                 <!-- 1. KẾT QUẢ NGƯỜI DÙNG (Chỉ hiện khi tìm bằng Keyword bình thường) -->
                 <?php
                 if (!empty($safe_keyword)) {
-                    $sql_users = "SELECT * FROM users WHERE (full_name LIKE '%$safe_keyword%' OR username LIKE '%$safe_keyword%') AND id != $current_user_id LIMIT 5";
+                    $sql_users = "SELECT ND_Ma as id, ND_TaiKhoan as username, ND_HoTen as full_name, ND_AnhDaiDien as avatar_url 
+                                  FROM NGUOI_DUNG 
+                                  WHERE (ND_HoTen LIKE '%$safe_keyword%' OR ND_TaiKhoan LIKE '%$safe_keyword%') 
+                                  AND ND_Ma != $current_user_id LIMIT 5";
                     $res_users = $conn->query($sql_users);
 
                     if ($res_users && $res_users->num_rows > 0) {
@@ -133,7 +136,12 @@ $unread_notif_count = $notif_count_query->fetch_assoc()['total'];
                                 
                                 <?php
                                 $target_id = $u['id'];
-                                $check_friend = $conn->query("SELECT status, sender_id FROM friends WHERE (sender_id=$current_user_id AND receiver_id=$target_id) OR (sender_id=$target_id AND receiver_id=$current_user_id)");
+                                $sql_friend = "SELECT BB_TrangThai as status, ND_Ma_Gui as sender_id 
+                                               FROM BAN_BE 
+                                               WHERE (ND_Ma_Gui=$current_user_id AND ND_Ma_Nhan=$target_id) 
+                                                  OR (ND_Ma_Gui=$target_id AND ND_Ma_Nhan=$current_user_id)";
+                                $check_friend = $conn->query($sql_friend);
+                                
                                 if ($check_friend->num_rows > 0) {
                                     $f_data = $check_friend->fetch_assoc();
                                     if ($f_data['status'] == 'accepted') {
@@ -164,32 +172,37 @@ $unread_notif_count = $notif_count_query->fetch_assoc()['total'];
                     $where_condition = "";
 
                     if (!empty($safe_hashtag)) {
-                        // NẾU TÌM THEO HASHTAG: Liên kết 2 bảng post_hashtags và hashtags
-                        $join_tables = " JOIN post_hashtags ph ON posts.id = ph.post_id 
-                                         JOIN hashtags h ON ph.hashtag_id = h.id ";
-                        $where_condition = " h.tag_name = '$safe_hashtag' ";
+                        // NẾU TÌM THEO HASHTAG: Liên kết 2 bảng BAI_VIET_HASHTAG và HASHTAG
+                        $join_tables = " JOIN BAI_VIET_HASHTAG ph ON posts.BV_Ma = ph.BV_Ma 
+                                         JOIN HASHTAG h ON ph.HT_Ma = h.HT_Ma ";
+                        $where_condition = " h.HT_Ten = '$safe_hashtag' ";
                     } else {
                         // NẾU TÌM BẰNG TỪ KHÓA BÌNH THƯỜNG
-                        $where_condition = " (posts.content LIKE '%$safe_keyword%' OR posts.ai_topic LIKE '%$safe_keyword%') ";
+                        $where_condition = " (posts.BV_NoiDung LIKE '%$safe_keyword%' OR posts.BV_ChuDeAI LIKE '%$safe_keyword%') ";
                     }
 
-                    // Ráp câu lệnh SQL hoàn chỉnh
-                    $sql_posts = "SELECT posts.*, users.full_name, users.avatar_url,
-                                    (SELECT COUNT(*) FROM likes WHERE post_id = posts.id) as like_count,
-                                    (SELECT COUNT(*) FROM likes WHERE post_id = posts.id AND user_id = $current_user_id) as user_liked,
-                                    (SELECT COUNT(*) FROM comments WHERE post_id = posts.id) as comment_count
-                                  FROM posts 
-                                  JOIN users ON posts.user_id = users.id 
+                    // Ráp câu lệnh SQL hoàn chỉnh bằng ngôn ngữ Tiếng Việt
+                    $sql_posts = "SELECT posts.BV_Ma as id, posts.ND_Ma as user_id, posts.BV_NoiDung as content, 
+                                         posts.BV_QuyenRiengTu as privacy, posts.BV_HinhAnh as image_url, 
+                                         posts.BV_HinhAnhAI as generated_image_url, posts.BV_NgayDang as created_at, 
+                                         posts.BV_ChuDeAI as ai_topic, 
+                                         users.ND_HoTen as full_name, users.ND_AnhDaiDien as avatar_url,
+                                         (SELECT COUNT(*) FROM LUOT_THICH WHERE BV_Ma = posts.BV_Ma) as like_count,
+                                         (SELECT COUNT(*) FROM LUOT_THICH WHERE BV_Ma = posts.BV_Ma AND ND_Ma = $current_user_id) as user_liked,
+                                         (SELECT COUNT(*) FROM BINH_LUAN WHERE BV_Ma = posts.BV_Ma) as comment_count
+                                  FROM BAI_VIET posts 
+                                  JOIN NGUOI_DUNG users ON posts.ND_Ma = users.ND_Ma 
                                   $join_tables
                                   WHERE $where_condition
-                                    AND (posts.privacy = 'public' 
-                                     OR posts.user_id = $current_user_id
-                                     OR (posts.privacy = 'friends' AND posts.user_id IN (
-                                         SELECT sender_id FROM friends WHERE receiver_id = $current_user_id AND status = 'accepted'
+                                    AND (posts.BV_QuyenRiengTu = 'public' 
+                                     OR posts.ND_Ma = $current_user_id
+                                     OR (posts.BV_QuyenRiengTu = 'friends' AND posts.ND_Ma IN (
+                                         SELECT ND_Ma_Gui FROM BAN_BE WHERE ND_Ma_Nhan = $current_user_id AND BB_TrangThai = 'accepted'
                                          UNION
-                                         SELECT receiver_id FROM friends WHERE sender_id = $current_user_id AND status = 'accepted'
+                                         SELECT ND_Ma_Nhan FROM BAN_BE WHERE ND_Ma_Gui = $current_user_id AND BB_TrangThai = 'accepted'
                                      )))
-                                  ORDER BY posts.created_at DESC";
+                                  ORDER BY posts.BV_NgayDang DESC";
+                                  
                     $result_posts = $conn->query($sql_posts);
 
                     if ($result_posts && $result_posts->num_rows > 0) {
